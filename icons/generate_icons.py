@@ -41,11 +41,11 @@ def generate_icon(filename, size):
     for y in range(size):
         row_bytes = bytearray()
         for x in range(size):
-            # Gradient background from deep navy (#0f172a) to vibrant blue (#3b82f6)
+            # Gradient background from rich emerald green (#10b981) to deep emerald (#059669)
             t = (x + y) / (2.0 * size)
-            r = int(15 * (1 - t) + 59 * t)
-            g = int(23 * (1 - t) + 130 * t)
-            b = int(42 * (1 - t) + 246 * t)
+            r = int(16 * (1 - t) + 5 * t)
+            g = int(185 * (1 - t) + 150 * t)
+            b = int(129 * (1 - t) + 105 * t)
             a = 255
             
             # Draw rounded center icon box / white frame accent
