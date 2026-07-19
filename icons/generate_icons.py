@@ -12,7 +12,7 @@ def write_png(filename, width, height, pixels):
     
     # IHDR Chunk
     ihdr_data = struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0)
-    ihdr_crc = zlib.crc32(ihdr_data)
+    ihdr_crc = zlib.crc32(b'IHDR' + ihdr_data)
     ihdr = struct.pack('>I', len(ihdr_data)) + b'IHDR' + ihdr_data + struct.pack('>I', ihdr_crc)
     
     # IDAT Chunk (raw image scanlines with filter byte 0 pre-pended to each row)

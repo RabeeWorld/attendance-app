@@ -46,7 +46,8 @@ const app = {
       students: [],
       attendanceMap: {},
       isEditing: false
-    }
+    },
+    deferredPrompt: null
   },
 
   /**
@@ -56,6 +57,7 @@ const app = {
     this.setupEventListeners();
     this.setupNetworkMonitor();
     this.setupOfflineQueueMonitor();
+    this.setupPWAInstallListener();
 
     // Check login state
     const loggedIn = localStorage.getItem('slaq_auth_logged_in') === 'true';
@@ -153,6 +155,62 @@ const app = {
       if (result.synced > 0) {
         this.showToast(`Successfully synced ${result.synced} offline record(s)!`, 'success');
       }
+    });
+  },
+
+  /**
+   * Setup PWA Installation Prompt Listener & Button Handler
+   */
+  setupPWAInstallListener() {
+    const installBtn = document.getElementById('install-app-btn');
+
+    // Intercept Chrome/Edge native PWA install prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent browser mini-infobar from automatically appearing
+      e.preventDefault();
+      // Save the event so it can be triggered later via our custom button
+      this.state.deferredPrompt = e;
+      // Show the Install App button right in the header
+      if (installBtn) {
+        installBtn.classList.remove('hidden');
+      }
+      console.log('[PWA] beforeinstallprompt fired. Install button activated.');
+    });
+
+    // Handle install button click
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        const promptEvent = this.state.deferredPrompt;
+        if (!promptEvent) {
+          this.showToast('App is already installed or not currently installable.', 'info');
+          return;
+        }
+
+        // Show native install dialog
+        promptEvent.prompt();
+
+        // Wait for the user to respond to the prompt
+        const { outcome } = await promptEvent.userChoice;
+        console.log(`[PWA] User response to install prompt: ${outcome}`);
+
+        if (outcome === 'accepted') {
+          this.showToast('Installing Attendance Tracker...', 'success');
+        }
+
+        // We've used the prompt, reset it and hide the button
+        this.state.deferredPrompt = null;
+        installBtn.classList.add('hidden');
+      });
+    }
+
+    // Listen for when the PWA is successfully installed
+    window.addEventListener('appinstalled', (e) => {
+      this.state.deferredPrompt = null;
+      if (installBtn) {
+        installBtn.classList.add('hidden');
+      }
+      console.log('[PWA] App successfully installed to Home Screen.');
+      this.showToast('Attendance Tracker installed successfully to Home Screen!', 'success');
     });
   },
 
