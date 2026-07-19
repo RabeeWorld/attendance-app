@@ -1,24 +1,38 @@
 {
+  "id": "./",
   "name": "Attendance Tracker",
   "short_name": "Attendance",
   "description": "Progressive Web App for tracking daily classroom attendance with offline support and Google Sheets backend.",
-  "start_url": "index.html",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "./icons/icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "./icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ]
 }

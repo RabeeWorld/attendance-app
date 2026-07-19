@@ -11,17 +11,17 @@
  * ============================================================================
  */
 
-const CACHE_NAME = 'attendance-pwa-v17';
+const CACHE_NAME = 'attendance-pwa-v18';
 const STATIC_ASSETS = [
-  'index.html',
-  'manifest.json',
-  'css/style.css',
-  'js/config.js',
-  'js/api.js',
-  'js/db.js',
-  'js/app.js',
-  'icons/icon-192.png',
-  'icons/icon-512.png'
+  './index.html',
+  './manifest.json',
+  './css/style.css',
+  './js/config.js',
+  './js/api.js',
+  './js/db.js',
+  './js/app.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 /**
@@ -82,7 +82,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           console.log('[Service Worker] Navigation offline. Falling back to cached index.html');
-          return caches.match('index.html');
+          return caches.match('./index.html').then(res => res || caches.match('index.html'));
         })
     );
     return;
