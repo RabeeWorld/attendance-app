@@ -782,6 +782,13 @@ h1, h2, h3, h4 {
   gap: 12px;
   background: linear-gradient(145deg, #f0fdf4, #ecfdf5) !important;
   border-color: #bbf7d0 !important;
+  margin-top: 18px !important;
+}
+.quick-nav-card + .quick-nav-card {
+  margin-top: 18px !important;
+}
+#daily-inspection-screen .setup-card {
+  margin-bottom: 20px !important;
 }
 .card-header-row {
   display: flex;

@@ -90,6 +90,13 @@ const app = {
       }
     });
 
+    // Immediately reset scroll position to the very top when opening any screen
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    const mainElem = document.querySelector('main');
+    if (mainElem) mainElem.scrollTop = 0;
+
     // Toggle logout button visibility
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -385,47 +392,37 @@ const app = {
     }
 
     const repSubjectSelector = document.getElementById('report-subject-selector');
-    const subViewOverallBtn = document.getElementById('sub-view-overall-btn');
-    const subViewDailyBtn = document.getElementById('sub-view-daily-btn');
-    const subOverallPanel = document.getElementById('subject-overall-panel');
-    const subDailyPanel = document.getElementById('subject-daily-inspection-panel');
-
-    if (subViewOverallBtn && subViewDailyBtn) {
-      subViewOverallBtn.addEventListener('click', () => {
-        subViewOverallBtn.classList.add('active');
-        subViewDailyBtn.classList.remove('active');
-        subOverallPanel.classList.remove('hidden');
-        subDailyPanel.classList.add('hidden');
-        if (repSubjectSelector && repSubjectSelector.value) {
-          this.loadSubjectReportData(repSubjectSelector.value);
-        }
-      });
-
-      subViewDailyBtn.addEventListener('click', () => {
-        subViewDailyBtn.classList.add('active');
-        subViewOverallBtn.classList.remove('active');
-        subDailyPanel.classList.remove('hidden');
-        subOverallPanel.classList.add('hidden');
-        if (repSubjectSelector && repSubjectSelector.value) {
-          this.loadSubjectDailyDateReport();
-        }
-      });
-    }
-
     if (repSubjectSelector) {
       repSubjectSelector.addEventListener('change', async (e) => {
-        const isDailyActive = subViewDailyBtn && subViewDailyBtn.classList.contains('active');
-        if (isDailyActive) {
-          await this.loadSubjectDailyDateReport();
-        } else {
-          await this.loadSubjectReportData(e.target.value);
-        }
+        await this.loadSubjectReportData(e.target.value);
       });
     }
 
-    const subDatePicker = document.getElementById('subject-report-date-picker');
-    if (subDatePicker) {
-      subDatePicker.addEventListener('change', async () => {
+    // 10. Daily Date Inspection Navigation & Controls
+    const navToDailyInspectionBtn = document.getElementById('nav-to-daily-inspection-btn');
+    if (navToDailyInspectionBtn) {
+      navToDailyInspectionBtn.addEventListener('click', async () => {
+        await this.openDailyInspectionScreen();
+      });
+    }
+
+    const dailyInspectionBackBtn = document.getElementById('daily-inspection-back-btn');
+    if (dailyInspectionBackBtn) {
+      dailyInspectionBackBtn.addEventListener('click', () => {
+        this.showScreen('home-screen');
+      });
+    }
+
+    const dailySubjectSelector = document.getElementById('daily-inspection-subject-selector');
+    if (dailySubjectSelector) {
+      dailySubjectSelector.addEventListener('change', async () => {
+        await this.loadSubjectDailyDateReport();
+      });
+    }
+
+    const dailyDatePicker = document.getElementById('daily-inspection-date-picker');
+    if (dailyDatePicker) {
+      dailyDatePicker.addEventListener('change', async () => {
         await this.loadSubjectDailyDateReport();
       });
     }
@@ -951,18 +948,67 @@ const app = {
   },
 
   /**
+   * Open dedicated Daily Date Inspection screen and initialize dropdowns/date
+   */
+  async openDailyInspectionScreen() {
+    this.showScreen('daily-inspection-screen');
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+
+    const subjectSelector = document.getElementById('daily-inspection-subject-selector');
+    const datePicker = document.getElementById('daily-inspection-date-picker');
+
+    if (datePicker && !datePicker.value) {
+      datePicker.value = this.state.date || new Date().toISOString().split('T')[0];
+    }
+
+    if (!subjectSelector) return;
+    subjectSelector.innerHTML = '<option value="" disabled selected>Loading subjects...</option>';
+
+    try {
+      const [subjectsB1, subjectsB2] = await Promise.all([
+        api.getSubjects('B1').catch(() => ({ subjects: [] })),
+        api.getSubjects('B2').catch(() => ({ subjects: [] }))
+      ]);
+
+      const allSubjectsMap = new Map();
+      [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || [])].forEach(sub => {
+        allSubjectsMap.set(sub.subject_id, sub);
+      });
+      this.state.reportsSubjectsMap = allSubjectsMap;
+
+      if (allSubjectsMap.size > 0) {
+        subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+        allSubjectsMap.forEach(sub => {
+          const opt = document.createElement('option');
+          opt.value = sub.subject_id;
+          opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
+          subjectSelector.appendChild(opt);
+        });
+      } else {
+        subjectSelector.innerHTML = '<option value="" disabled>No subjects found</option>';
+      }
+    } catch (e) {
+      console.error('[Init Daily Inspection Error]', e);
+      this.showToast('Could not load subjects for daily inspection.', 'error');
+    }
+  },
+
+  /**
    * Load and render Daily Date Inspection Report for selected Subject and Date
    */
   async loadSubjectDailyDateReport() {
-    const subjectSelector = document.getElementById('report-subject-selector');
-    const datePicker = document.getElementById('subject-report-date-picker');
+    const subjectSelector = document.getElementById('daily-inspection-subject-selector') || document.getElementById('report-subject-selector');
+    const datePicker = document.getElementById('daily-inspection-date-picker') || document.getElementById('subject-report-date-picker');
     const tbody = document.getElementById('subject-daily-tbody');
     const editBtn = document.getElementById('edit-daily-attendance-btn');
     const saveBtn = document.getElementById('save-daily-attendance-btn');
     const dateLabel = document.getElementById('rep-daily-date-label');
 
     if (!subjectSelector || !subjectSelector.value) {
-      this.showToast('Please select a subject first.', 'warning');
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Select a subject to view daily snapshot</td></tr>';
+      }
       return;
     }
 

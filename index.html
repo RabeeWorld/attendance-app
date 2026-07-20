@@ -131,10 +131,80 @@
 
       <div class="quick-nav-card glass-card">
         <div class="card-header-row">
+          <h3>Daily Date Inspection</h3>
+          <button id="nav-to-daily-inspection-btn" class="btn secondary-btn btn-sm">Inspect / Edit Past Dates →</button>
+        </div>
+        <p class="quick-nav-desc">Review and edit attendance records for any subject across past calendar dates.</p>
+      </div>
+
+      <div class="quick-nav-card glass-card">
+        <div class="card-header-row">
           <h3>Reports & Analytics</h3>
           <button id="nav-to-reports-btn" class="btn secondary-btn btn-sm">View All →</button>
         </div>
         <p class="quick-nav-desc">Check attendance summaries, aggregate percentages, and historical logs by student or subject.</p>
+      </div>
+    </section>
+
+    <!-- 2b. DAILY INSPECTION SCREEN -->
+    <section id="daily-inspection-screen" class="screen hidden">
+      <div class="screen-header">
+        <div class="screen-header-inner">
+          <div class="screen-badge-icon">📅</div>
+          <h2>Daily Date Inspection</h2>
+        </div>
+        <p>Inspect and edit historical attendance snapshots by subject and date</p>
+        <button id="daily-inspection-back-btn" class="btn outline-btn btn-sm back-to-home-btn">← Back to Home</button>
+      </div>
+
+      <!-- Card 1: Select Subject -->
+      <div class="setup-card glass-card accent-card mb-4">
+        <div class="form-group mb-0">
+          <label for="daily-inspection-subject-selector">Select Subject</label>
+          <select id="daily-inspection-subject-selector" class="form-control custom-select">
+            <option value="" disabled selected>Loading subjects...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Card 2: Select Calendar Date -->
+      <div class="setup-card glass-card mb-4">
+        <div class="form-group mb-0 date-picker-group">
+          <label for="daily-inspection-date-picker">Select Calendar Date</label>
+          <input type="date" id="daily-inspection-date-picker" class="form-control custom-date">
+        </div>
+      </div>
+
+      <!-- Card 3: Daily Attendance Snapshot -->
+      <div class="history-list-card glass-card">
+        <div class="daily-table-header-row">
+          <h3 class="mb-0">Daily Attendance Snapshot (<span id="rep-daily-date-label">Today</span>)</h3>
+          <div class="daily-actions">
+            <button type="button" id="edit-daily-attendance-btn" class="btn outline-btn btn-sm">✏️ Edit This Day's Attendance</button>
+            <button type="button" id="save-daily-attendance-btn" class="btn primary-btn btn-sm hidden">💾 Save Changes</button>
+          </div>
+        </div>
+        <div class="daily-summary-pills mt-3 mb-3">
+          <span class="pill count-present">🟢 Present: <strong id="rep-daily-present">0</strong></span>
+          <span class="pill count-late">⏰ Late: <strong id="rep-daily-late">0</strong></span>
+          <span class="pill count-absent">🔴 Absent: <strong id="rep-daily-absent">0</strong></span>
+          <span class="pill count-leave">🟡 Leave: <strong id="rep-daily-leave">0</strong></span>
+          <span class="pill count-unmarked">⚪ Unmarked: <strong id="rep-daily-unmarked">0</strong></span>
+        </div>
+        <div class="table-responsive">
+          <table class="report-table minimal-attendance-table">
+            <thead>
+              <tr>
+                <th class="col-roll">Roll</th>
+                <th class="col-name">Student Name</th>
+                <th class="col-status">Status on Date</th>
+              </tr>
+            </thead>
+            <tbody id="subject-daily-tbody">
+              <tr><td colspan="3" class="text-center text-muted py-3">Select a subject to view daily snapshot</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -256,12 +326,6 @@
         </div>
 
         <div id="subject-report-content" class="report-content hidden">
-          <!-- View Mode Toggle Bar -->
-          <div class="report-view-toggle">
-            <button type="button" id="sub-view-overall-btn" class="toggle-pill active">📊 Overall Semester Average</button>
-            <button type="button" id="sub-view-daily-btn" class="toggle-pill">📅 Daily Date Inspection</button>
-          </div>
-
           <!-- Overall Semester Panel -->
           <div id="subject-overall-panel">
             <div class="stats-grid">
@@ -311,47 +375,6 @@
                     </tr>
                   </thead>
                   <tbody id="subject-students-tbody"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Daily Date Inspection & Past Day Edit Panel -->
-          <div id="subject-daily-inspection-panel" class="hidden">
-            <div class="daily-inspection-header glass-card">
-              <div class="date-select-row clean-date-row">
-                <div class="form-group mb-0 date-picker-group">
-                  <label for="subject-report-date-picker">Select Calendar Date</label>
-                  <input type="date" id="subject-report-date-picker" class="form-control custom-date">
-                </div>
-              </div>
-              <div class="daily-summary-pills mt-3">
-                <span class="pill count-present">🟢 Present: <strong id="rep-daily-present">0</strong></span>
-                <span class="pill count-late">⏰ Late: <strong id="rep-daily-late">0</strong></span>
-                <span class="pill count-absent">🔴 Absent: <strong id="rep-daily-absent">0</strong></span>
-                <span class="pill count-leave">🟡 Leave: <strong id="rep-daily-leave">0</strong></span>
-                <span class="pill count-unmarked">⚪ Unmarked: <strong id="rep-daily-unmarked">0</strong></span>
-              </div>
-            </div>
-
-            <div class="history-list-card glass-card mt-3">
-              <div class="daily-table-header-row">
-                <h3 class="mb-0">Daily Attendance Snapshot (<span id="rep-daily-date-label">Today</span>)</h3>
-                <div class="daily-actions">
-                  <button type="button" id="edit-daily-attendance-btn" class="btn outline-btn btn-sm">✏️ Edit This Day's Attendance</button>
-                  <button type="button" id="save-daily-attendance-btn" class="btn primary-btn btn-sm hidden">💾 Save Changes</button>
-                </div>
-              </div>
-              <div class="table-responsive mt-3">
-                <table class="report-table minimal-attendance-table">
-                  <thead>
-                    <tr>
-                      <th class="col-roll">Roll</th>
-                      <th class="col-name">Student Name</th>
-                      <th class="col-status">Status on Date</th>
-                    </tr>
-                  </thead>
-                  <tbody id="subject-daily-tbody"></tbody>
                 </table>
               </div>
             </div>
