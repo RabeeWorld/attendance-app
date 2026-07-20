@@ -421,31 +421,6 @@ h1, h2, h3, h4 {
   box-shadow: 0 14px 26px -6px rgba(16, 185, 129, 0.55) !important;
   background: linear-gradient(135deg, #059669, #047857) !important;
 }
-.login-hint {
-  margin-top: 26px;
-  padding: 13px 18px;
-  background: #f8fafc;
-  border-radius: 14px;
-  font-size: 0.85rem;
-  color: #475569;
-  text-align: center;
-  border: 1px dashed #cbd5e1;
-  font-weight: 500;
-}
-.pin-badge {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-family: monospace;
-  font-weight: 700;
-  font-size: 0.92rem;
-  margin: 0 3px;
-}
-.hint-muted {
-  color: #94a3b8;
-}
 
 /* Glass & Card Styles */
 .glass-card {
@@ -764,12 +739,6 @@ h1, h2, h3, h4 {
   margin-bottom: 16px;
   text-align: center;
   border: 1px solid #fca5a5;
-}
-.login-hint {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
 }
 
 /* Home Screen – Class Setup Card */
