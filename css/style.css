@@ -39,6 +39,11 @@
   --leave-amber-bg: #fef3c7;
   --leave-amber-border: #d97706;
 
+  --late-purple: #8b5cf6;
+  --late-purple-bg: #ede9fe;
+  --late-purple-border: #7c3aed;
+
+
   /* Shadows and Borders */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -89,6 +94,7 @@ h1, h2, h3, h4 {
 .text-green { color: var(--present-green) !important; }
 .text-red { color: var(--absent-red) !important; }
 .text-amber { color: var(--leave-amber) !important; }
+.text-purple { color: var(--late-purple) !important; }
 .highlight-blue { color: var(--primary) !important; font-weight: 700; }
 .text-muted { color: var(--text-muted); font-size: 0.9rem; }
 .mb-0 { margin-bottom: 0 !important; }
@@ -937,6 +943,9 @@ h1, h2, h3, h4 {
 .minimal-attendance-table tbody tr.status-leave {
   background-color: #fffbeb;
 }
+.minimal-attendance-table tbody tr.status-late {
+  background-color: #f5f3ff;
+}
 .minimal-attendance-table td {
   padding: 14px 18px;
   vertical-align: middle;
@@ -1002,6 +1011,12 @@ h1, h2, h3, h4 {
   border-color: var(--leave-amber-border);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+.status-pill.active.late {
+  background-color: var(--late-purple);
+  border-color: var(--late-purple-border);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.35);
 }
 
 /* Submit Footer – Premium Frosted Glass */
@@ -1151,6 +1166,7 @@ h1, h2, h3, h4 {
 .count-present { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
 .count-absent { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
 .count-leave { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+.count-late { background: #ede9fe; color: #5b21b6; border: 1px solid #8b5cf6; }
 .count-unmarked { background: #f1f5f9; color: var(--text-secondary); border: 1px solid #cbd5e1; }
 .stats-grid {
   display: grid;
@@ -1161,6 +1177,7 @@ h1, h2, h3, h4 {
 .stat-card {
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   align-items: center;
   text-align: center;
   padding: 22px 16px !important;
@@ -1168,6 +1185,7 @@ h1, h2, h3, h4 {
   border-radius: 18px !important;
   position: relative;
   overflow: hidden;
+  height: 100%;
 }
 .stat-card::before {
   content: '';
@@ -1187,20 +1205,25 @@ h1, h2, h3, h4 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  min-height: 2.6em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .stat-value {
   font-family: 'Outfit', sans-serif;
   font-size: 2.4rem;
   font-weight: 800;
   line-height: 1;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
   letter-spacing: -0.04em;
 }
 .stat-formula, .stat-unit {
   font-size: 0.73rem;
   color: var(--text-muted);
   font-weight: 500;
+  margin-top: auto;
 }
 .history-list {
   display: flex;
@@ -1225,6 +1248,7 @@ h1, h2, h3, h4 {
 .history-item.status-present { border-left-color: var(--present-green); }
 .history-item.status-absent { border-left-color: var(--absent-red); }
 .history-item.status-leave { border-left-color: var(--leave-amber); }
+.history-item.status-late { border-left-color: var(--late-purple); }
 
 .history-date {
   font-weight: 700;
@@ -1260,6 +1284,9 @@ h1, h2, h3, h4 {
   text-align: left;
   border-bottom: 1px solid #f1f5f9;
 }
+.report-table td {
+  vertical-align: middle;
+}
 .report-table th {
   background-color: #f8fafc;
   font-weight: 700;
@@ -1267,6 +1294,7 @@ h1, h2, h3, h4 {
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  vertical-align: top;
 }
 .report-table tr:last-child td {
   border-bottom: none;
@@ -1524,6 +1552,7 @@ h1, h2, h3, h4 {
   .status-pill.present { color: #059669; border-color: #a7f3d0; background: #f0fdf4; }
   .status-pill.absent { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
   .status-pill.leave { color: #d97706; border-color: #fde68a; background: #fffbeb; }
+  .status-pill.late { color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff; }
 
   .status-pill.active.present {
     background-color: #10b981 !important;
@@ -1546,6 +1575,13 @@ h1, h2, h3, h4 {
     box-shadow: 0 3px 10px rgba(245, 158, 11, 0.4) !important;
     transform: scale(1.08);
   }
+  .status-pill.active.late {
+    background-color: #8b5cf6 !important;
+    border-color: #6d28d9 !important;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(139, 92, 246, 0.4) !important;
+    transform: scale(1.08);
+  }
 
   /* Submit Footer Mobile Fit */
   .submit-footer {
@@ -1565,6 +1601,9 @@ h1, h2, h3, h4 {
   .header-mobile {
     display: inline !important;
   }
+  .history-list-card {
+    padding: 16px 10px !important;
+  }
   .table-responsive {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
@@ -1578,25 +1617,30 @@ h1, h2, h3, h4 {
   }
   .report-table.subject-breakdown-table th.rep-col-roll,
   .report-table.subject-breakdown-table td.rep-col-roll {
-    width: 32px !important;
-    max-width: 36px !important;
-    text-align: center !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 40px !important;
+    padding: 8px 4px !important;
+    text-align: left !important;
   }
   .report-table.subject-breakdown-table th.rep-col-name,
   .report-table.subject-breakdown-table td.rep-col-name {
-    min-width: 95px !important;
+    min-width: 85px !important;
+    padding: 8px 6px 8px 12px !important;
     word-break: break-word;
   }
   .report-table.subject-breakdown-table th.rep-col-stat,
   .report-table.subject-breakdown-table td.rep-col-stat {
-    width: 38px !important;
-    min-width: 38px !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    padding: 8px 1px !important;
     text-align: center !important;
   }
   .report-table.subject-breakdown-table th.rep-col-rate,
   .report-table.subject-breakdown-table td.rep-col-rate {
-    width: 52px !important;
-    min-width: 52px !important;
+    width: 88px !important;
+    min-width: 88px !important;
+    padding: 8px 2px !important;
     text-align: center !important;
   }
   .report-table.subject-breakdown-table .pill {

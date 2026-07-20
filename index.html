@@ -148,6 +148,7 @@
         </div>
         <div class="counter-pills">
           <span class="pill count-present">🟢 Present: <strong id="cnt-present">0</strong></span>
+          <span class="pill count-late">⏰ Late: <strong id="cnt-late">0</strong></span>
           <span class="pill count-absent">🔴 Absent: <strong id="cnt-absent">0</strong></span>
           <span class="pill count-leave">🟡 Leave: <strong id="cnt-leave">0</strong></span>
         </div>
@@ -185,7 +186,7 @@
           </div>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 6px;">
-          <p>Real-time calculation — Leave excluded from percentage</p>
+          <p>Real-time calculation — Present + Late counted towards %, Leave excluded</p>
           <button id="report-back-btn" class="btn secondary-btn btn-sm">← Back to Home</button>
         </div>
       </div>
@@ -212,22 +213,27 @@
             <div class="stat-card glass-card">
               <span class="stat-label">Attendance Rate</span>
               <span id="rep-student-percentage" class="stat-value highlight-blue">0%</span>
-              <span class="stat-formula">Present / (Present + Absent)</span>
+              <span class="stat-formula" style="white-space: nowrap;">(P + LT) / (P + LT + AB)</span>
             </div>
             <div class="stat-card glass-card">
-              <span class="stat-label">Present</span>
+              <span class="stat-label">Days Marked Present</span>
               <span id="rep-student-present" class="stat-value text-green">0</span>
-              <span class="stat-unit">days</span>
+              <span class="stat-unit">days attended</span>
             </div>
             <div class="stat-card glass-card">
-              <span class="stat-label">Absent</span>
+              <span class="stat-label">Days Marked Late</span>
+              <span id="rep-student-late" class="stat-value text-purple">0</span>
+              <span class="stat-unit">Counted as present in %</span>
+            </div>
+            <div class="stat-card glass-card">
+              <span class="stat-label">Days Marked Absent</span>
               <span id="rep-student-absent" class="stat-value text-red">0</span>
-              <span class="stat-unit">days</span>
+              <span class="stat-unit">days missed</span>
             </div>
             <div class="stat-card glass-card">
-              <span class="stat-label">Leave (Excused)</span>
+              <span class="stat-label">Excused Leaves</span>
               <span id="rep-student-leave" class="stat-value text-amber">0</span>
-              <span class="stat-unit">excluded from %</span>
+              <span class="stat-unit">Not counted in %</span>
             </div>
           </div>
 
@@ -260,24 +266,29 @@
           <div id="subject-overall-panel">
             <div class="stats-grid">
               <div class="stat-card glass-card">
-                <span class="stat-label">Overall Subject Avg</span>
+                <span class="stat-label">Class Attendance Rate</span>
                 <span id="rep-subject-percentage" class="stat-value highlight-blue">0%</span>
-                <span class="stat-formula">Across all active students</span>
+                <span class="stat-formula" style="white-space: nowrap;">(P + LT) / (P + LT + AB)</span>
               </div>
               <div class="stat-card glass-card">
-                <span class="stat-label">Total Present</span>
+                <span class="stat-label">Times Marked Present</span>
                 <span id="rep-subject-present" class="stat-value text-green">0</span>
-                <span class="stat-unit">student-days</span>
+                <span class="stat-unit">Sum across entire class</span>
               </div>
               <div class="stat-card glass-card">
-                <span class="stat-label">Total Absent</span>
+                <span class="stat-label">Times Marked Late</span>
+                <span id="rep-subject-late" class="stat-value text-purple">0</span>
+                <span class="stat-unit">Counted as present in %</span>
+              </div>
+              <div class="stat-card glass-card">
+                <span class="stat-label">Times Marked Absent</span>
                 <span id="rep-subject-absent" class="stat-value text-red">0</span>
-                <span class="stat-unit">student-days</span>
+                <span class="stat-unit">Sum across entire class</span>
               </div>
               <div class="stat-card glass-card">
-                <span class="stat-label">Total Leave</span>
+                <span class="stat-label">Excused Leaves</span>
                 <span id="rep-subject-leave" class="stat-value text-amber">0</span>
-                <span class="stat-unit">student-days</span>
+                <span class="stat-unit">Not counted in %</span>
               </div>
             </div>
 
@@ -289,10 +300,14 @@
                     <tr>
                       <th class="rep-col-roll text-center">Roll</th>
                       <th class="rep-col-name">Name</th>
-                      <th class="rep-col-stat text-center"><span class="header-full">Present</span><span class="header-mobile">Pres</span></th>
-                      <th class="rep-col-stat text-center"><span class="header-full">Absent</span><span class="header-mobile">Abs</span></th>
-                      <th class="rep-col-stat text-center"><span class="header-full">Leave</span><span class="header-mobile">Lv</span></th>
-                      <th class="rep-col-rate text-center"><span class="header-full">Rate %</span><span class="header-mobile">Avg %</span></th>
+                      <th class="rep-col-stat text-center"><span class="header-full">Present</span><span class="header-mobile">P</span></th>
+                      <th class="rep-col-stat text-center"><span class="header-full">Late</span><span class="header-mobile">LT</span></th>
+                      <th class="rep-col-stat text-center"><span class="header-full">Absent</span><span class="header-mobile">A</span></th>
+                      <th class="rep-col-stat text-center"><span class="header-full">Leave</span><span class="header-mobile">LV</span></th>
+                      <th class="rep-col-rate text-center" title="(P + LT) / (P + LT + AB) * 100">
+                        <span class="header-full">Rate %<br><small style="font-size:0.75rem; font-weight:normal; opacity:0.85; white-space: nowrap;">(P + LT) / (P + LT + AB)</small></span>
+                        <span class="header-mobile">Avg %<br><small style="font-size:0.63rem; font-weight:normal; opacity:0.85; white-space: nowrap;">(P+L)/(P+L+A)</small></span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody id="subject-students-tbody"></tbody>
@@ -312,6 +327,7 @@
               </div>
               <div class="daily-summary-pills mt-3">
                 <span class="pill count-present">🟢 Present: <strong id="rep-daily-present">0</strong></span>
+                <span class="pill count-late">⏰ Late: <strong id="rep-daily-late">0</strong></span>
                 <span class="pill count-absent">🔴 Absent: <strong id="rep-daily-absent">0</strong></span>
                 <span class="pill count-leave">🟡 Leave: <strong id="rep-daily-leave">0</strong></span>
                 <span class="pill count-unmarked">⚪ Unmarked: <strong id="rep-daily-unmarked">0</strong></span>

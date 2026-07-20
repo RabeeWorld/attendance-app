@@ -24,7 +24,7 @@ const app = {
       try {
         const saved = localStorage.getItem('slaq_subjects_cache');
         if (saved) return JSON.parse(saved);
-      } catch (e) {}
+      } catch (e) { }
       return {
         'B1': [
           { subject_id: 'SUB101', subject_name: 'Mathematics (Algebra & Calculus)' },
@@ -226,7 +226,7 @@ const app = {
         const pinInput = document.getElementById('pin-input');
         const loginError = document.getElementById('login-error');
         const submitBtn = document.getElementById('login-submit-btn');
-        
+
         loginError.classList.add('hidden');
         submitBtn.disabled = true;
         submitBtn.textContent = 'Verifying PIN...';
@@ -285,10 +285,10 @@ const app = {
 
         const batchId = btn.getAttribute('data-batch-id');
         const batchName = btn.getAttribute('data-batch-name') || (batchId === 'B1' ? 'Batch A (Standard B1)' : 'Batch B (Advanced B2)');
-        
+
         this.state.batchId = batchId;
         this.state.batchName = batchName;
-        
+
         const hiddenInput = document.getElementById('batch-hidden-input');
         if (hiddenInput) hiddenInput.value = batchId;
 
@@ -509,7 +509,7 @@ const app = {
         if (response && response.success && Array.isArray(response.subjects)) {
           const newSubjectsJson = JSON.stringify(response.subjects);
           const oldSubjectsJson = JSON.stringify(cachedSubjects || []);
-          
+
           this.state.subjectsCache[batchId] = response.subjects;
           localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
 
@@ -656,6 +656,10 @@ const app = {
                     data-student="${sid}" data-status="Present" title="Mark Present">
               <span class="status-full">🟢 Present</span><span class="status-mobile">P</span>
             </button>
+            <button type="button" class="status-pill late ${currentStatus === 'Late' ? 'active' : ''}" 
+                    data-student="${sid}" data-status="Late" title="Mark Late">
+              <span class="status-full">⏰ Late</span><span class="status-mobile">Lt</span>
+            </button>
             <button type="button" class="status-pill absent ${currentStatus === 'Absent' ? 'active' : ''}" 
                     data-student="${sid}" data-status="Absent" title="Mark Absent">
               <span class="status-full">🔴 Absent</span><span class="status-mobile">A</span>
@@ -709,15 +713,17 @@ const app = {
    * Recalculate sticky header counters: Present, Absent, Leave
    */
   updateCounters() {
-    let present = 0, absent = 0, leave = 0;
-    
+    let present = 0, late = 0, absent = 0, leave = 0;
+
     for (const status of Object.values(this.state.attendanceMap)) {
       if (status === 'Present') present++;
+      else if (status === 'Late') late++;
       else if (status === 'Absent') absent++;
       else if (status === 'Leave') leave++;
     }
 
     document.getElementById('cnt-present').textContent = present;
+    document.getElementById('cnt-late').textContent = late;
     document.getElementById('cnt-absent').textContent = absent;
     document.getElementById('cnt-leave').textContent = leave;
   },
@@ -796,7 +802,7 @@ const app = {
       ]);
 
       const allStudents = [...(studentsB1.students || []), ...(studentsB2.students || [])];
-      
+
       if (allStudents.length > 0) {
         studentSelector.innerHTML = '<option value="" disabled selected>Choose Student</option>';
         allStudents.forEach(s => {
@@ -844,7 +850,7 @@ const app = {
   async loadStudentReportData(studentId) {
     const contentPanel = document.getElementById('student-report-content');
     const historyList = document.getElementById('student-history-list');
-    
+
     contentPanel.classList.remove('hidden');
     historyList.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Calculating attendance percentage...</p></div>';
 
@@ -858,6 +864,7 @@ const app = {
 
       document.getElementById('rep-student-percentage').textContent = `${summary.percentage}%`;
       document.getElementById('rep-student-present').textContent = summary.present;
+      document.getElementById('rep-student-late').textContent = summary.late || 0;
       document.getElementById('rep-student-absent').textContent = summary.absent;
       document.getElementById('rep-student-leave').textContent = summary.leave;
 
@@ -876,8 +883,8 @@ const app = {
             <div class="history-date">${r.date}</div>
             <div class="history-meta">Subject: ${r.subject_id} · Marked by ${r.teacher || 'Teacher'}</div>
           </div>
-          <span class="history-pill text-${st === 'present' ? 'green' : st === 'absent' ? 'red' : 'amber'}">
-            ${r.status === 'Present' ? '🟢 Present' : r.status === 'Absent' ? '🔴 Absent' : '🟡 Leave'}
+          <span class="history-pill text-${st === 'present' ? 'green' : st === 'late' ? 'purple' : st === 'absent' ? 'red' : 'amber'}">
+            ${r.status === 'Present' ? '🟢 Present' : r.status === 'Late' ? '⏰ Late' : r.status === 'Absent' ? '🔴 Absent' : '🟡 Leave'}
           </span>
         `;
         historyList.appendChild(item);
@@ -909,6 +916,7 @@ const app = {
 
       document.getElementById('rep-subject-percentage').textContent = `${summary.overall_percentage}%`;
       document.getElementById('rep-subject-present').textContent = summary.present;
+      document.getElementById('rep-subject-late').textContent = summary.late || 0;
       document.getElementById('rep-subject-absent').textContent = summary.absent;
       document.getElementById('rep-subject-leave').textContent = summary.leave;
 
@@ -924,6 +932,7 @@ const app = {
           <td class="rep-col-roll text-center"><strong>${s.roll_no}</strong></td>
           <td class="rep-col-name">${s.name}</td>
           <td class="rep-col-stat text-green font-bold text-center">${s.present}</td>
+          <td class="rep-col-stat text-purple font-bold text-center">${s.late || 0}</td>
           <td class="rep-col-stat text-red font-bold text-center">${s.absent}</td>
           <td class="rep-col-stat text-amber font-bold text-center">${s.leave}</td>
           <td class="rep-col-rate text-center">
@@ -1002,6 +1011,7 @@ const app = {
       this.state.dailyInspectionState.attendanceMap = attMap;
 
       let presentCount = 0;
+      let lateCount = 0;
       let absentCount = 0;
       let leaveCount = 0;
       let unmarkedCount = 0;
@@ -1018,6 +1028,7 @@ const app = {
         const st = attMap[sid];
 
         if (st === 'Present') presentCount++;
+        else if (st === 'Late') lateCount++;
         else if (st === 'Absent') absentCount++;
         else if (st === 'Leave') leaveCount++;
         else unmarkedCount++;
@@ -1028,6 +1039,7 @@ const app = {
 
         let statusDisplay = '<span class="pill text-muted">⚪ Not Marked</span>';
         if (st === 'Present') statusDisplay = '<span class="pill text-green font-bold">🟢 Present</span>';
+        else if (st === 'Late') statusDisplay = '<span class="pill text-purple font-bold">⏰ Late</span>';
         else if (st === 'Absent') statusDisplay = '<span class="pill text-red font-bold">🔴 Absent</span>';
         else if (st === 'Leave') statusDisplay = '<span class="pill text-amber font-bold">🟡 Leave</span>';
 
@@ -1040,10 +1052,12 @@ const app = {
       });
 
       const pElem = document.getElementById('rep-daily-present');
+      const ltElem = document.getElementById('rep-daily-late');
       const aElem = document.getElementById('rep-daily-absent');
       const lElem = document.getElementById('rep-daily-leave');
       const uElem = document.getElementById('rep-daily-unmarked');
       if (pElem) pElem.textContent = presentCount;
+      if (ltElem) ltElem.textContent = lateCount;
       if (aElem) aElem.textContent = absentCount;
       if (lElem) lElem.textContent = leaveCount;
       if (uElem) uElem.textContent = unmarkedCount;
@@ -1086,6 +1100,7 @@ const app = {
           statusCell.innerHTML = `
             <div class="status-selector-table">
               <button type="button" class="status-pill present ${currentSt === 'Present' ? 'active' : ''}" data-sid="${sid}" data-status="Present" title="Mark Present"><span class="status-full">🟢 Present</span><span class="status-mobile">P</span></button>
+              <button type="button" class="status-pill late ${currentSt === 'Late' ? 'active' : ''}" data-sid="${sid}" data-status="Late" title="Mark Late"><span class="status-full">⏰ Late</span><span class="status-mobile">Lt</span></button>
               <button type="button" class="status-pill absent ${currentSt === 'Absent' ? 'active' : ''}" data-sid="${sid}" data-status="Absent" title="Mark Absent"><span class="status-full">🔴 Absent</span><span class="status-mobile">A</span></button>
               <button type="button" class="status-pill leave ${currentSt === 'Leave' ? 'active' : ''}" data-sid="${sid}" data-status="Leave" title="Mark Leave"><span class="status-full">🟡 Leave</span><span class="status-mobile">L</span></button>
             </div>
