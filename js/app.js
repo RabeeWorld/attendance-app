@@ -470,6 +470,16 @@ const app = {
         await this.saveDailyAttendanceEdit();
       });
     }
+
+    const cancelDailyBtn = document.getElementById('cancel-daily-attendance-btn');
+    if (cancelDailyBtn) {
+      cancelDailyBtn.addEventListener('click', async () => {
+        if (this.state.dailyInspectionState) {
+          this.state.dailyInspectionState.isEditing = false;
+        }
+        await this.loadSubjectDailyDateReport();
+      });
+    }
   },
 
   /**
@@ -1211,6 +1221,7 @@ const app = {
     const tbody = document.getElementById('subject-daily-tbody');
     const editBtn = document.getElementById('edit-daily-attendance-btn');
     const saveBtn = document.getElementById('save-daily-attendance-btn');
+    const cancelBtn = document.getElementById('cancel-daily-attendance-btn');
     const dateLabel = document.getElementById('rep-daily-date-label');
 
     if (!subjectSelector || !subjectSelector.value) {
@@ -1241,8 +1252,9 @@ const app = {
       isEditing: false
     };
 
-    if (editBtn) editBtn.classList.remove('hidden');
+    if (editBtn) editBtn.classList.add('hidden');
     if (saveBtn) saveBtn.classList.add('hidden');
+    if (cancelBtn) cancelBtn.classList.add('hidden');
 
     if (tbody) {
       tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4"><div class="spinner"></div><p>Loading attendance snapshot for ' + selectedDate + '...</p></td></tr>';
@@ -1316,6 +1328,15 @@ const app = {
       if (lElem) lElem.textContent = leaveCount;
       if (uElem) uElem.textContent = unmarkedCount;
 
+      const hasMarkedRecords = (presentCount + lateCount + absentCount + leaveCount) > 0 || Object.keys(attMap).length > 0;
+      if (editBtn) {
+        if (hasMarkedRecords) {
+          editBtn.classList.remove('hidden');
+        } else {
+          editBtn.classList.add('hidden');
+        }
+      }
+
     } catch (err) {
       console.error('[Load Daily Inspection Error]', err);
       if (tbody) {
@@ -1330,6 +1351,7 @@ const app = {
   enableDailyAttendanceEdit() {
     const editBtn = document.getElementById('edit-daily-attendance-btn');
     const saveBtn = document.getElementById('save-daily-attendance-btn');
+    const cancelBtn = document.getElementById('cancel-daily-attendance-btn');
     const tbody = document.getElementById('subject-daily-tbody');
 
     if (!this.state.dailyInspectionState || !this.state.dailyInspectionState.students.length) {
@@ -1340,6 +1362,7 @@ const app = {
     this.state.dailyInspectionState.isEditing = true;
     if (editBtn) editBtn.classList.add('hidden');
     if (saveBtn) saveBtn.classList.remove('hidden');
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
 
     const attMap = this.state.dailyInspectionState.attendanceMap;
 
