@@ -128,24 +128,85 @@ const api = {
   },
 
   /**
-   * 2. Fetch all student batches (B1, B2)
+   * 2. Fetch all student batches (B1, B2) with offline cache fallback
    */
   async getBatches() {
-    return this._get('getBatches');
+    if (!navigator.onLine) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_batches_cache') || '[]');
+        if (Array.isArray(cached) && cached.length > 0) {
+          return { success: true, batches: cached, fromCache: true };
+        }
+      } catch (e) {}
+    }
+    try {
+      return await this._get('getBatches');
+    } catch (error) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_batches_cache') || '[]');
+        if (Array.isArray(cached) && cached.length > 0) {
+          return { success: true, batches: cached, fromCache: true };
+        }
+      } catch (e) {}
+      throw error;
+    }
   },
 
   /**
-   * 3. Fetch active students in a batch sorted by roll_no
+   * 2.5 Fetch all core setup data in 1 single network request (Batches, Subjects B1/B2, Students B1/B2)
+   */
+  async getBootstrapData() {
+    return this._get('getBootstrapData');
+  },
+
+  /**
+   * 3. Fetch active students in a batch sorted by roll_no (with offline cache fallback)
    */
   async getStudents(batchId) {
-    return this._get('getStudents', { batch_id: batchId });
+    if (!navigator.onLine) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_students_cache') || '{}');
+        if (cached && cached[batchId]) {
+          return { success: true, batch_id: batchId, students: cached[batchId], fromCache: true };
+        }
+      } catch (e) {}
+    }
+    try {
+      return await this._get('getStudents', { batch_id: batchId });
+    } catch (error) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_students_cache') || '{}');
+        if (cached && cached[batchId]) {
+          return { success: true, batch_id: batchId, students: cached[batchId], fromCache: true };
+        }
+      } catch (e) {}
+      throw error;
+    }
   },
 
   /**
-   * 4. Fetch available subjects for a batch
+   * 4. Fetch available subjects for a batch (with offline cache fallback)
    */
   async getSubjects(batchId) {
-    return this._get('getSubjects', { batch_id: batchId });
+    if (!navigator.onLine) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_subjects_cache') || '{}');
+        if (cached && cached[batchId]) {
+          return { success: true, batch_id: batchId, subjects: cached[batchId], fromCache: true };
+        }
+      } catch (e) {}
+    }
+    try {
+      return await this._get('getSubjects', { batch_id: batchId });
+    } catch (error) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_subjects_cache') || '{}');
+        if (cached && cached[batchId]) {
+          return { success: true, batch_id: batchId, subjects: cached[batchId], fromCache: true };
+        }
+      } catch (e) {}
+      throw error;
+    }
   },
 
   /**

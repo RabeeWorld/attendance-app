@@ -20,6 +20,13 @@ const app = {
     subjectName: '',
     students: [],
     attendanceMap: {}, // student_id -> 'Present' | 'Absent' | 'Leave'
+    batchesCache: (() => {
+      try {
+        const saved = localStorage.getItem('slaq_batches_cache');
+        if (saved) return JSON.parse(saved);
+      } catch (e) { }
+      return [];
+    })(),
     subjectsCache: (() => {
       try {
         const saved = localStorage.getItem('slaq_subjects_cache');
@@ -37,6 +44,13 @@ const app = {
           { subject_id: 'SUB203', subject_name: 'Software Engineering & System Design' }
         ]
       };
+    })(),
+    studentsCache: (() => {
+      try {
+        const saved = localStorage.getItem('slaq_students_cache');
+        if (saved) return JSON.parse(saved);
+      } catch (e) { }
+      return {};
     })(),
     reportsSubjectsMap: new Map(),
     dailyInspectionState: {
@@ -443,36 +457,76 @@ const app = {
   },
 
   /**
-   * Load Batches for Home Setup Screen (Updates static button metadata)
+   * Load Batches & Setup Cache for Home Screen (Instant 0ms render + Stale-While-Revalidate)
    */
   async loadHomeSetupData() {
     try {
-      const response = await api.getBatches();
-      if (response && response.success && Array.isArray(response.batches)) {
-        response.batches.forEach(b => {
+      // 0ms Instant Load: Immediately display cached batch titles & student counts before network check!
+      if (Array.isArray(this.state.batchesCache) && this.state.batchesCache.length > 0) {
+        this.state.batchesCache.forEach(b => {
           const countElem = document.getElementById(`batch-count-${b.batch_id}`);
-          if (countElem) {
-            countElem.textContent = `${b.batch_name.split('(')[0].trim()} · ${b.student_count} Students`;
-          }
+          if (countElem) countElem.textContent = `${b.batch_name.split('(')[0].trim()} · ${b.student_count} Students`;
           const btn = document.querySelector(`.batch-btn[data-batch-id="${b.batch_id}"]`);
-          if (btn) {
-            btn.setAttribute('data-batch-name', `${b.batch_name} (${b.student_count} Students)`);
-          }
+          if (btn) btn.setAttribute('data-batch-name', `${b.batch_name} (${b.student_count} Students)`);
         });
       }
 
-      // Non-blocking background pre-fetch for Batch 1 and Batch 2 subjects so clicking any button later has 0ms delay!
-      ['B1', 'B2'].forEach(bId => {
-        api.getSubjects(bId).then(res => {
-          if (res && res.success && Array.isArray(res.subjects) && res.subjects.length > 0) {
-            this.state.subjectsCache[bId] = res.subjects;
+      if (navigator.onLine) {
+        api.getBootstrapData().then(res => {
+          if (res && res.success) {
+            if (Array.isArray(res.batches)) {
+              this.state.batchesCache = res.batches;
+              localStorage.setItem('slaq_batches_cache', JSON.stringify(res.batches));
+              res.batches.forEach(b => {
+                const countElem = document.getElementById(`batch-count-${b.batch_id}`);
+                if (countElem) countElem.textContent = `${b.batch_name.split('(')[0].trim()} · ${b.student_count} Students`;
+                const btn = document.querySelector(`.batch-btn[data-batch-id="${b.batch_id}"]`);
+                if (btn) btn.setAttribute('data-batch-name', `${b.batch_name} (${b.student_count} Students)`);
+              });
+            }
+            if (Array.isArray(res.subjectsB1) && res.subjectsB1.length > 0) this.state.subjectsCache['B1'] = res.subjectsB1;
+            if (Array.isArray(res.subjectsB2) && res.subjectsB2.length > 0) this.state.subjectsCache['B2'] = res.subjectsB2;
+            if (Array.isArray(res.studentsB1) && res.studentsB1.length > 0) this.state.studentsCache['B1'] = res.studentsB1;
+            if (Array.isArray(res.studentsB2) && res.studentsB2.length > 0) this.state.studentsCache['B2'] = res.studentsB2;
+
             localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
+            localStorage.setItem('slaq_students_cache', JSON.stringify(this.state.studentsCache));
+            localStorage.setItem('slaq_cache_timestamp', String(Date.now()));
           }
-        }).catch(err => console.warn(`[Background Subject Prefetch] Maintaining cached subjects for ${bId}`));
-      });
+        }).catch(err => {
+          console.warn('[Bootstrap Prefetch] Falling back to separate batch/subject prefetch:', err.message);
+          api.getBatches().then(response => {
+            if (response && response.success && Array.isArray(response.batches)) {
+              this.state.batchesCache = response.batches;
+              localStorage.setItem('slaq_batches_cache', JSON.stringify(response.batches));
+              response.batches.forEach(b => {
+                const countElem = document.getElementById(`batch-count-${b.batch_id}`);
+                if (countElem) countElem.textContent = `${b.batch_name.split('(')[0].trim()} · ${b.student_count} Students`;
+                const btn = document.querySelector(`.batch-btn[data-batch-id="${b.batch_id}"]`);
+                if (btn) btn.setAttribute('data-batch-name', `${b.batch_name} (${b.student_count} Students)`);
+              });
+            }
+          }).catch(() => {});
+          ['B1', 'B2'].forEach(bId => {
+            api.getSubjects(bId).then(res => {
+              if (res && res.success && Array.isArray(res.subjects) && res.subjects.length > 0) {
+                this.state.subjectsCache[bId] = res.subjects;
+                localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
+              }
+            }).catch(() => {});
+            api.getStudents(bId).then(res => {
+              if (res && res.success && Array.isArray(res.students) && res.students.length > 0) {
+                this.state.studentsCache[bId] = res.students;
+                localStorage.setItem('slaq_students_cache', JSON.stringify(this.state.studentsCache));
+              }
+            }).catch(() => {});
+          });
+        });
+      } else {
+        console.log('[Offline Setup] Using cached batches, subjects and students');
+      }
     } catch (error) {
-      console.error('[Load Batches Error]', error);
-      // Static buttons remain functional even offline or when server is unreachable
+      console.error('[Load Setup Error]', error);
     }
   },
 
@@ -530,45 +584,64 @@ const app = {
   },
 
   /**
-   * Start Marking Session: Immediately load students defaulting to Present, check past records non-blocking in background
+   * Start Marking Session: Instantaneous 0ms render from cached students + Stale-While-Revalidate background sync
    */
   async startMarkingSession() {
     this.showScreen('marking-screen');
 
-    // Update Header Labels
     const metaLabel = document.getElementById('marking-batch-subject-label');
     const dateLabel = document.getElementById('marking-date-label');
     metaLabel.textContent = `${this.state.batchName} · ${this.state.subjectName}`;
     dateLabel.textContent = this.state.date;
 
     const listContainer = document.getElementById('students-list-container');
-    listContainer.innerHTML = `
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Loading students roster...</p>
-      </div>
-    `;
+    const cachedStudents = this.state.studentsCache[this.state.batchId] || [];
 
-    try {
-      // 1. Fetch active students immediately
-      const studentsResp = await api.getStudents(this.state.batchId);
-      if (!studentsResp || !studentsResp.success || !Array.isArray(studentsResp.students)) {
-        throw new Error('Failed to fetch students list from server.');
-      }
-      this.state.students = studentsResp.students;
-
-      // 2. Initialize attendance map with default 'Present' for instant marking
+    if (cachedStudents.length > 0) {
+      // 0ms Instant Load!
+      this.state.students = cachedStudents;
       this.state.attendanceMap = {};
       this.state.students.forEach(student => {
         const sid = String(student.student_id).trim();
         this.state.attendanceMap[sid] = 'Present';
       });
-
-      // 3. Render student cards & counters right away without waiting for past records
       this.renderStudentRows();
       this.updateCounters();
+    } else {
+      listContainer.innerHTML = `
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading students roster...</p>
+        </div>
+      `;
+    }
 
-      // 4. Non-Blocking Background Check for existing saved attendance records
+    try {
+      // 1. Fetch live students (or offline fallback from api.js)
+      const studentsResp = await api.getStudents(this.state.batchId);
+      if (!studentsResp || !studentsResp.success || !Array.isArray(studentsResp.students)) {
+        if (cachedStudents.length === 0) throw new Error('Failed to fetch students list from server.');
+      } else {
+        const oldJson = JSON.stringify(this.state.students || []);
+        const newJson = JSON.stringify(studentsResp.students);
+        this.state.studentsCache[this.state.batchId] = studentsResp.students;
+        localStorage.setItem('slaq_students_cache', JSON.stringify(this.state.studentsCache));
+
+        if (oldJson !== newJson || cachedStudents.length === 0) {
+          this.state.students = studentsResp.students;
+          this.state.attendanceMap = {};
+          this.state.students.forEach(student => {
+            const sid = String(student.student_id).trim();
+            if (this.state.attendanceMap[sid] === undefined) {
+              this.state.attendanceMap[sid] = 'Present';
+            }
+          });
+          this.renderStudentRows();
+          this.updateCounters();
+        }
+      }
+
+      // 2. Non-Blocking Background Check for existing saved attendance records today
       api.getAttendance(this.state.date, this.state.batchId, this.state.subjectId)
         .then((attResp) => {
           if (attResp && attResp.success && Array.isArray(attResp.records) && attResp.records.length > 0) {
@@ -591,12 +664,14 @@ const app = {
 
     } catch (error) {
       console.error('[Marking Session Error]', error);
-      listContainer.innerHTML = `
-        <div class="loading-state">
-          <p style="color: #ef4444; font-weight: 600;">Error: ${error.message}</p>
-          <button class="btn secondary-btn btn-sm mt-3" onclick="app.showScreen('home-screen')">← Back to Setup</button>
-        </div>
-      `;
+      if (cachedStudents.length === 0) {
+        listContainer.innerHTML = `
+          <div class="loading-state">
+            <p style="color: #ef4444; font-weight: 600;">Error: ${error.message}</p>
+            <button class="btn secondary-btn btn-sm mt-3" onclick="app.showScreen('home-screen')">← Back to Setup</button>
+          </div>
+        `;
+      }
     }
   },
 
@@ -750,6 +825,8 @@ const app = {
     try {
       const response = await api.submitAttendance(payload);
       if (response && response.success) {
+        localStorage.removeItem('slaq_student_reports_cache');
+        localStorage.removeItem('slaq_subject_reports_cache');
         this.showToast(`Successfully saved ${response.saved || records.length} attendance records!`, 'success');
         this.showScreen('home-screen');
       } else {
@@ -760,6 +837,8 @@ const app = {
       if (error.isNetworkError || !navigator.onLine) {
         try {
           await db.queueAttendance(payload);
+          localStorage.removeItem('slaq_student_reports_cache');
+          localStorage.removeItem('slaq_subject_reports_cache');
           this.showToast('Saved offline! Will sync automatically when Wi-Fi/data is restored.', 'warning');
           this.showScreen('home-screen');
         } catch (queueErr) {
@@ -781,63 +860,99 @@ const app = {
    * ============================================================================ */
 
   /**
-   * Initialize dropdowns for Student and Subject Reports
+   * Initialize dropdowns for Student and Subject Reports (Instant 0ms render from cache)
    */
   async initReportsScreen() {
     const studentSelector = document.getElementById('report-student-selector');
     const subjectSelector = document.getElementById('report-subject-selector');
 
-    studentSelector.innerHTML = '<option value="" disabled selected>Loading students...</option>';
-    subjectSelector.innerHTML = '<option value="" disabled selected>Loading subjects...</option>';
+    // Instant 0ms Load from Local Cache!
+    const cachedStudentsB1 = this.state.studentsCache['B1'] || [];
+    const cachedStudentsB2 = this.state.studentsCache['B2'] || [];
+    const allCachedStudents = [...cachedStudentsB1, ...cachedStudentsB2];
 
-    try {
-      // Load batches first to get all students across B1 and B2
-      const [studentsB1, studentsB2, batchesResp] = await Promise.all([
+    const cachedSubjectsB1 = this.state.subjectsCache['B1'] || [];
+    const cachedSubjectsB2 = this.state.subjectsCache['B2'] || [];
+    const allCachedSubjectsMap = new Map();
+    [...cachedSubjectsB1, ...cachedSubjectsB2].forEach(sub => allCachedSubjectsMap.set(sub.subject_id, sub));
+
+    if (allCachedStudents.length > 0) {
+      const curStudent = studentSelector.value;
+      studentSelector.innerHTML = '<option value="" disabled selected>Choose Student</option>';
+      allCachedStudents.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.student_id;
+        opt.textContent = `${s.name} (${s.batch_id} - Roll ${s.roll_no})`;
+        if (s.student_id === curStudent) opt.selected = true;
+        studentSelector.appendChild(opt);
+      });
+    } else {
+      studentSelector.innerHTML = '<option value="" disabled selected>Loading students...</option>';
+    }
+
+    if (allCachedSubjectsMap.size > 0) {
+      this.state.reportsSubjectsMap = allCachedSubjectsMap;
+      const curSubject = subjectSelector.value;
+      subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+      allCachedSubjectsMap.forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub.subject_id;
+        opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
+        if (sub.subject_id === curSubject) opt.selected = true;
+        subjectSelector.appendChild(opt);
+      });
+    } else {
+      subjectSelector.innerHTML = '<option value="" disabled selected>Loading subjects...</option>';
+    }
+
+    // Stale-While-Revalidate background sync
+    if (navigator.onLine) {
+      Promise.all([
         api.getStudents('B1').catch(() => ({ students: [] })),
         api.getStudents('B2').catch(() => ({ students: [] })),
-        api.getBatches().catch(() => ({ batches: [] }))
-      ]);
-
-      const allStudents = [...(studentsB1.students || []), ...(studentsB2.students || [])];
-
-      if (allStudents.length > 0) {
-        studentSelector.innerHTML = '<option value="" disabled selected>Choose Student</option>';
-        allStudents.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s.student_id;
-          opt.textContent = `${s.name} (${s.batch_id} - Roll ${s.roll_no})`;
-          studentSelector.appendChild(opt);
-        });
-      } else {
-        studentSelector.innerHTML = '<option value="" disabled>No students found</option>';
-      }
-
-      // Load all subjects across batches
-      const [subjectsB1, subjectsB2] = await Promise.all([
         api.getSubjects('B1').catch(() => ({ subjects: [] })),
         api.getSubjects('B2').catch(() => ({ subjects: [] }))
-      ]);
+      ]).then(([studentsB1, studentsB2, subjectsB1, subjectsB2]) => {
+        const allStudents = [...(studentsB1.students || []), ...(studentsB2.students || [])];
+        if (allStudents.length > 0) {
+          if (Array.isArray(studentsB1.students)) this.state.studentsCache['B1'] = studentsB1.students;
+          if (Array.isArray(studentsB2.students)) this.state.studentsCache['B2'] = studentsB2.students;
+          localStorage.setItem('slaq_students_cache', JSON.stringify(this.state.studentsCache));
 
-      const allSubjectsMap = new Map();
-      [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || [])].forEach(sub => {
-        allSubjectsMap.set(sub.subject_id, sub);
-      });
-      this.state.reportsSubjectsMap = allSubjectsMap;
+          if (allCachedStudents.length === 0 || studentSelector.options.length <= 1) {
+            const curStudent = studentSelector.value;
+            studentSelector.innerHTML = '<option value="" disabled selected>Choose Student</option>';
+            allStudents.forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = s.student_id;
+              opt.textContent = `${s.name} (${s.batch_id} - Roll ${s.roll_no})`;
+              if (s.student_id === curStudent) opt.selected = true;
+              studentSelector.appendChild(opt);
+            });
+          }
+        }
 
-      if (allSubjectsMap.size > 0) {
-        subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
-        allSubjectsMap.forEach(sub => {
-          const opt = document.createElement('option');
-          opt.value = sub.subject_id;
-          opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
-          subjectSelector.appendChild(opt);
+        const allSubjectsMap = new Map();
+        [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || [])].forEach(sub => {
+          allSubjectsMap.set(sub.subject_id, sub);
         });
-      } else {
-        subjectSelector.innerHTML = '<option value="" disabled>No subjects found</option>';
-      }
-    } catch (e) {
-      console.error('[Init Reports Error]', e);
-      this.showToast('Could not load students and subjects for reports.', 'error');
+        this.state.reportsSubjectsMap = allSubjectsMap;
+        if (Array.isArray(subjectsB1.subjects)) this.state.subjectsCache['B1'] = subjectsB1.subjects;
+        if (Array.isArray(subjectsB2.subjects)) this.state.subjectsCache['B2'] = subjectsB2.subjects;
+        localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
+
+        if (allCachedSubjectsMap.size === 0 || subjectSelector.options.length <= 1) {
+          const curSubject = subjectSelector.value;
+          subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+          allSubjectsMap.forEach(sub => {
+            const opt = document.createElement('option');
+            opt.value = sub.subject_id;
+            opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
+            if (sub.subject_id === curSubject) opt.selected = true;
+            subjectSelector.appendChild(opt);
+          });
+        }
+      }).catch(e => console.warn('[Reports Sync] Maintaining cached dropdown options:', e.message));
     }
   },
 
@@ -948,7 +1063,7 @@ const app = {
   },
 
   /**
-   * Open dedicated Daily Date Inspection screen and initialize dropdowns/date
+   * Open dedicated Daily Date Inspection screen and initialize dropdowns/date (Instant 0ms render from cache)
    */
   async openDailyInspectionScreen() {
     this.showScreen('daily-inspection-screen');
@@ -963,34 +1078,55 @@ const app = {
     }
 
     if (!subjectSelector) return;
-    subjectSelector.innerHTML = '<option value="" disabled selected>Loading subjects...</option>';
 
-    try {
-      const [subjectsB1, subjectsB2] = await Promise.all([
+    // Instant 0ms Load from Local Cache!
+    const cachedB1 = this.state.subjectsCache['B1'] || [];
+    const cachedB2 = this.state.subjectsCache['B2'] || [];
+    const allCachedMap = new Map();
+    [...cachedB1, ...cachedB2].forEach(sub => allCachedMap.set(sub.subject_id, sub));
+
+    if (allCachedMap.size > 0) {
+      this.state.reportsSubjectsMap = allCachedMap;
+      const currentSelection = subjectSelector.value;
+      subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+      allCachedMap.forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub.subject_id;
+        opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
+        if (sub.subject_id === currentSelection) opt.selected = true;
+        subjectSelector.appendChild(opt);
+      });
+    } else {
+      subjectSelector.innerHTML = '<option value="" disabled selected>Loading subjects...</option>';
+    }
+
+    // Stale-While-Revalidate background sync
+    if (navigator.onLine) {
+      Promise.all([
         api.getSubjects('B1').catch(() => ({ subjects: [] })),
         api.getSubjects('B2').catch(() => ({ subjects: [] }))
-      ]);
-
-      const allSubjectsMap = new Map();
-      [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || [])].forEach(sub => {
-        allSubjectsMap.set(sub.subject_id, sub);
-      });
-      this.state.reportsSubjectsMap = allSubjectsMap;
-
-      if (allSubjectsMap.size > 0) {
-        subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
-        allSubjectsMap.forEach(sub => {
-          const opt = document.createElement('option');
-          opt.value = sub.subject_id;
-          opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
-          subjectSelector.appendChild(opt);
+      ]).then(([subjectsB1, subjectsB2]) => {
+        const allSubjectsMap = new Map();
+        [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || [])].forEach(sub => {
+          allSubjectsMap.set(sub.subject_id, sub);
         });
-      } else {
-        subjectSelector.innerHTML = '<option value="" disabled>No subjects found</option>';
-      }
-    } catch (e) {
-      console.error('[Init Daily Inspection Error]', e);
-      this.showToast('Could not load subjects for daily inspection.', 'error');
+        this.state.reportsSubjectsMap = allSubjectsMap;
+        if (Array.isArray(subjectsB1.subjects)) this.state.subjectsCache['B1'] = subjectsB1.subjects;
+        if (Array.isArray(subjectsB2.subjects)) this.state.subjectsCache['B2'] = subjectsB2.subjects;
+        localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
+
+        if (allCachedMap.size === 0 || subjectSelector.options.length <= 1) {
+          const currentSelection = subjectSelector.value;
+          subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+          allSubjectsMap.forEach(sub => {
+            const opt = document.createElement('option');
+            opt.value = sub.subject_id;
+            opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
+            if (sub.subject_id === currentSelection) opt.selected = true;
+            subjectSelector.appendChild(opt);
+          });
+        }
+      }).catch(e => console.warn('[Daily Inspection Sync] Maintaining cached subjects options:', e.message));
     }
   },
 
@@ -1205,6 +1341,8 @@ const app = {
     try {
       const resp = await api.submitAttendance(payload);
       if (resp && resp.success) {
+        localStorage.removeItem('slaq_student_reports_cache');
+        localStorage.removeItem('slaq_subject_reports_cache');
         this.showToast(`Successfully updated ${records.length} records for ${stateObj.date}!`, 'success');
         await this.loadSubjectDailyDateReport();
         await this.loadSubjectReportData(stateObj.subjectId);

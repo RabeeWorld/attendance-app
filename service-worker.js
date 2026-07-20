@@ -11,7 +11,7 @@
  * ============================================================================
  */
 
-const CACHE_NAME = 'attendance-pwa-v21';
+const CACHE_NAME = 'attendance-pwa-v23';
 const STATIC_ASSETS = [
   './index.html',
   './manifest.json',
@@ -28,7 +28,7 @@ const STATIC_ASSETS = [
  * 1. Install Event: Cache App Shell resiliently
  */
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing Cache Shell v21...');
+  console.log('[Service Worker] Installing Cache Shell v23...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[Service Worker] Caching static assets');
