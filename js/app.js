@@ -13,7 +13,13 @@ const app = {
   // Current Session State
   state: {
     isAuthenticated: false,
-    date: new Date().toISOString().split('T')[0],
+    date: (() => {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    })(),
     batchId: null,
     batchName: '',
     subjectId: null,
@@ -66,6 +72,17 @@ const app = {
   },
 
   /**
+   * Helper to get today's calendar date in local timezone formatted as YYYY-MM-DD
+   */
+  getLocalDateString() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
+
+  /**
    * Initialize Application Lifecycle
    */
   async init() {
@@ -73,6 +90,13 @@ const app = {
     this.setupNetworkMonitor();
     this.setupOfflineQueueMonitor();
     this.setupPWAInstallListener();
+
+    // Initialize default date in picker to current local date
+    const datePicker = document.getElementById('date-selector');
+    if (datePicker) {
+      this.state.date = this.getLocalDateString();
+      datePicker.value = this.state.date;
+    }
 
     // Check login state
     const loggedIn = localStorage.getItem('slaq_auth_logged_in') === 'true';
@@ -82,12 +106,6 @@ const app = {
       await this.loadHomeSetupData();
     } else {
       this.showScreen('login-screen');
-    }
-
-    // Initialize default date in picker
-    const datePicker = document.getElementById('date-selector');
-    if (datePicker) {
-      datePicker.value = this.state.date;
     }
   },
 
@@ -261,7 +279,6 @@ const app = {
             pinInput.value = '';
             this.showScreen('home-screen');
             await this.loadHomeSetupData();
-            this.showToast('Logged in using local testing PIN', 'success');
             return;
           }
 
@@ -272,7 +289,6 @@ const app = {
             pinInput.value = '';
             this.showScreen('home-screen');
             await this.loadHomeSetupData();
-            this.showToast('Welcome to SLAQ Attendance Workspace!', 'success');
           } else {
             loginError.textContent = response.message || 'Incorrect PIN. Please try again.';
             loginError.classList.remove('hidden');
@@ -294,7 +310,6 @@ const app = {
         localStorage.removeItem('slaq_auth_logged_in');
         this.state.isAuthenticated = false;
         this.showScreen('login-screen');
-        this.showToast('Logged out successfully.', 'success');
       });
     }
 
@@ -349,7 +364,6 @@ const app = {
         for (const student of this.state.students) {
           this.setStudentStatus(student.student_id, 'Present');
         }
-        this.showToast('All students marked as Present.', 'success');
       });
     }
 
@@ -696,9 +710,6 @@ const app = {
                   updatedCount++;
                 }
               });
-              if (!localAttSnapshot && updatedCount > 0) {
-                this.showToast(`Loaded ${updatedCount} previously saved status record(s) for today.`, 'success');
-              }
             }
           }
         })
@@ -1135,7 +1146,7 @@ const app = {
     const datePicker = document.getElementById('daily-inspection-date-picker');
 
     if (datePicker && !datePicker.value) {
-      datePicker.value = this.state.date || new Date().toISOString().split('T')[0];
+      datePicker.value = this.state.date || this.getLocalDateString();
     }
 
     if (!subjectSelector) return;
@@ -1366,8 +1377,6 @@ const app = {
         });
       });
     }
-
-    this.showToast('You can now edit status buttons for ' + this.state.dailyInspectionState.date + '.', 'info');
   },
 
   /**
