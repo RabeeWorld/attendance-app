@@ -1037,14 +1037,24 @@ const app = {
         return;
       }
 
+      const getSubjectName = (sid) => {
+        if (this.state.reportsSubjectsMap && this.state.reportsSubjectsMap.has(sid)) {
+          return this.state.reportsSubjectsMap.get(sid).subject_name;
+        }
+        const allSubjects = [...(this.state.subjectsCache['B1'] || []), ...(this.state.subjectsCache['B2'] || [])];
+        const found = allSubjects.find(s => String(s.subject_id).trim() === String(sid).trim());
+        return found ? found.subject_name : sid;
+      };
+
       records.forEach(r => {
         const item = document.createElement('div');
         const st = String(r.status).toLowerCase();
+        const subjectDisplay = getSubjectName(r.subject_id);
         item.className = `history-item status-${st}`;
         item.innerHTML = `
           <div>
             <div class="history-date">${r.date}</div>
-            <div class="history-meta">Subject: ${r.subject_id} · Marked by ${r.teacher || 'Teacher'}</div>
+            <div class="history-meta">Subject: ${subjectDisplay} · Marked by ${r.teacher || 'Teacher'}</div>
           </div>
           <span class="history-pill text-${st === 'present' ? 'green' : st === 'late' ? 'purple' : st === 'absent' ? 'red' : 'amber'}">
             ${r.status === 'Present' ? '🟢 Present' : r.status === 'Late' ? '⏰ Late' : r.status === 'Absent' ? '🔴 Absent' : '🟡 Leave'}
