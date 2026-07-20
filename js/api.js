@@ -229,16 +229,68 @@ const api = {
   },
 
   /**
-   * 7. Fetch report summary and history for an individual student
+   * 7. Fetch report summary and history for an individual student (with offline cache fallback)
    */
   async getReport(studentId) {
-    return this._get('getReport', { student_id: studentId });
+    if (!navigator.onLine) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_student_reports_cache') || '{}');
+        if (cached && cached[studentId]) {
+          return { success: true, ...cached[studentId], fromCache: true };
+        }
+      } catch (e) {}
+    }
+    try {
+      const data = await this._get('getReport', { student_id: studentId });
+      if (data && data.success) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('slaq_student_reports_cache') || '{}');
+          cached[studentId] = data;
+          localStorage.setItem('slaq_student_reports_cache', JSON.stringify(cached));
+        } catch (e) {}
+      }
+      return data;
+    } catch (error) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_student_reports_cache') || '{}');
+        if (cached && cached[studentId]) {
+          return { success: true, ...cached[studentId], fromCache: true };
+        }
+      } catch (e) {}
+      throw error;
+    }
   },
 
   /**
-   * 8. Fetch subject aggregate report across all students
+   * 8. Fetch subject aggregate report across all students (with offline cache fallback)
    */
   async getSubjectReport(subjectId) {
-    return this._get('getSubjectReport', { subject_id: subjectId });
+    if (!navigator.onLine) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_subject_reports_cache') || '{}');
+        if (cached && cached[subjectId]) {
+          return { success: true, ...cached[subjectId], fromCache: true };
+        }
+      } catch (e) {}
+    }
+    try {
+      const data = await this._get('getSubjectReport', { subject_id: subjectId });
+      if (data && data.success) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('slaq_subject_reports_cache') || '{}');
+          cached[subjectId] = data;
+          localStorage.setItem('slaq_subject_reports_cache', JSON.stringify(cached));
+        } catch (e) {}
+      }
+      return data;
+    } catch (error) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_subject_reports_cache') || '{}');
+        if (cached && cached[subjectId]) {
+          return { success: true, ...cached[subjectId], fromCache: true };
+        }
+      } catch (e) {}
+      throw error;
+    }
   }
 };

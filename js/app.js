@@ -20,6 +20,7 @@ const app = {
     subjectName: '',
     students: [],
     attendanceMap: {}, // student_id -> 'Present' | 'Absent' | 'Leave'
+    isDirty: false,
     batchesCache: (() => {
       try {
         const saved = localStorage.getItem('slaq_batches_cache');
@@ -344,6 +345,7 @@ const app = {
     const markAllPresentBtn = document.getElementById('mark-all-present-btn');
     if (markAllPresentBtn) {
       markAllPresentBtn.addEventListener('click', () => {
+        this.state.isDirty = true;
         for (const student of this.state.students) {
           this.setStudentStatus(student.student_id, 'Present');
         }
@@ -584,10 +586,34 @@ const app = {
   },
 
   /**
-   * Start Marking Session: Instantaneous 0ms render from cached students + Stale-While-Revalidate background sync
+   * Local Attendance Snapshot Helpers (Indexed by date, batch_id, subject_id)
+   */
+  saveLocalAttendanceSnapshot(date, batchId, subjectId, attendanceMap) {
+    if (!date || !batchId || !subjectId || !attendanceMap) return;
+    try {
+      const key = `slaq_att_${date}_${batchId}_${subjectId}`;
+      localStorage.setItem(key, JSON.stringify(attendanceMap));
+    } catch (e) {
+      console.warn('[Snapshot Cache] Could not save local attendance snapshot:', e.message);
+    }
+  },
+
+  getLocalAttendanceSnapshot(date, batchId, subjectId) {
+    if (!date || !batchId || !subjectId) return null;
+    try {
+      const key = `slaq_att_${date}_${batchId}_${subjectId}`;
+      const saved = localStorage.getItem(key);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  },
+
+  /**
+   * Start Marking Session: Instantaneous 0ms render from cached students/attendance + Stale-While-Revalidate background sync
    */
   async startMarkingSession() {
     this.showScreen('marking-screen');
+    this.state.isDirty = false;
 
     const metaLabel = document.getElementById('marking-batch-subject-label');
     const dateLabel = document.getElementById('marking-date-label');
@@ -596,15 +622,24 @@ const app = {
 
     const listContainer = document.getElementById('students-list-container');
     const cachedStudents = this.state.studentsCache[this.state.batchId] || [];
+    const localAttSnapshot = this.getLocalAttendanceSnapshot(this.state.date, this.state.batchId, this.state.subjectId);
+
+    const initAttendanceMap = (studentsList) => {
+      studentsList.forEach(student => {
+        const sid = String(student.student_id).trim();
+        if (localAttSnapshot && localAttSnapshot[sid]) {
+          this.state.attendanceMap[sid] = localAttSnapshot[sid];
+        } else if (this.state.attendanceMap[sid] === undefined) {
+          this.state.attendanceMap[sid] = 'Present';
+        }
+      });
+    };
 
     if (cachedStudents.length > 0) {
       // 0ms Instant Load!
       this.state.students = cachedStudents;
       this.state.attendanceMap = {};
-      this.state.students.forEach(student => {
-        const sid = String(student.student_id).trim();
-        this.state.attendanceMap[sid] = 'Present';
-      });
+      initAttendanceMap(this.state.students);
       this.renderStudentRows();
       this.updateCounters();
     } else {
@@ -615,6 +650,9 @@ const app = {
         </div>
       `;
     }
+
+    const originalMetaText = `${this.state.batchName} · ${this.state.subjectName}`;
+    metaLabel.innerHTML = `${originalMetaText} <span class="sync-indicator" style="font-size:0.8rem; opacity:0.85; margin-left:8px;">⏳ Checking cloud records...</span>`;
 
     try {
       // 1. Fetch live students (or offline fallback from api.js)
@@ -629,15 +667,12 @@ const app = {
 
         if (oldJson !== newJson || cachedStudents.length === 0) {
           this.state.students = studentsResp.students;
-          this.state.attendanceMap = {};
-          this.state.students.forEach(student => {
-            const sid = String(student.student_id).trim();
-            if (this.state.attendanceMap[sid] === undefined) {
-              this.state.attendanceMap[sid] = 'Present';
-            }
-          });
-          this.renderStudentRows();
-          this.updateCounters();
+          if (!this.state.isDirty) {
+            this.state.attendanceMap = {};
+            initAttendanceMap(this.state.students);
+            this.renderStudentRows();
+            this.updateCounters();
+          }
         }
       }
 
@@ -645,25 +680,38 @@ const app = {
       api.getAttendance(this.state.date, this.state.batchId, this.state.subjectId)
         .then((attResp) => {
           if (attResp && attResp.success && Array.isArray(attResp.records) && attResp.records.length > 0) {
-            let updatedCount = 0;
+            const fetchedMap = {};
             attResp.records.forEach(r => {
               const sid = String(r.student_id).trim();
-              if (this.state.attendanceMap[sid] !== undefined) {
-                this.setStudentStatus(sid, r.status);
-                updatedCount++;
-              }
+              fetchedMap[sid] = r.status;
             });
-            if (updatedCount > 0) {
-              this.showToast(`Loaded ${updatedCount} previously saved status record(s) for today.`, 'success');
+            this.saveLocalAttendanceSnapshot(this.state.date, this.state.batchId, this.state.subjectId, fetchedMap);
+
+            if (!this.state.isDirty) {
+              let updatedCount = 0;
+              attResp.records.forEach(r => {
+                const sid = String(r.student_id).trim();
+                if (this.state.attendanceMap[sid] !== undefined && this.state.attendanceMap[sid] !== r.status) {
+                  this.setStudentStatus(sid, r.status);
+                  updatedCount++;
+                }
+              });
+              if (!localAttSnapshot && updatedCount > 0) {
+                this.showToast(`Loaded ${updatedCount} previously saved status record(s) for today.`, 'success');
+              }
             }
           }
         })
         .catch((e) => {
           console.warn('[Background Attendance Check] Could not check existing records or none found:', e.message);
+        })
+        .finally(() => {
+          if (metaLabel) metaLabel.textContent = originalMetaText;
         });
 
     } catch (error) {
       console.error('[Marking Session Error]', error);
+      if (metaLabel) metaLabel.textContent = originalMetaText;
       if (cachedStudents.length === 0) {
         listContainer.innerHTML = `
           <div class="loading-state">
@@ -747,6 +795,7 @@ const app = {
       // Add click listeners to status pills
       row.querySelectorAll('.status-pill').forEach(btn => {
         btn.addEventListener('click', (e) => {
+          this.state.isDirty = true;
           const targetSid = btn.getAttribute('data-student');
           const targetStatus = btn.getAttribute('data-status');
           this.setStudentStatus(targetSid, targetStatus);
@@ -825,6 +874,7 @@ const app = {
     try {
       const response = await api.submitAttendance(payload);
       if (response && response.success) {
+        this.saveLocalAttendanceSnapshot(this.state.date, this.state.batchId, this.state.subjectId, { ...this.state.attendanceMap });
         localStorage.removeItem('slaq_student_reports_cache');
         localStorage.removeItem('slaq_subject_reports_cache');
         this.showToast(`Successfully saved ${response.saved || records.length} attendance records!`, 'success');
@@ -837,6 +887,7 @@ const app = {
       if (error.isNetworkError || !navigator.onLine) {
         try {
           await db.queueAttendance(payload);
+          this.saveLocalAttendanceSnapshot(this.state.date, this.state.batchId, this.state.subjectId, { ...this.state.attendanceMap });
           localStorage.removeItem('slaq_student_reports_cache');
           localStorage.removeItem('slaq_subject_reports_cache');
           this.showToast('Saved offline! Will sync automatically when Wi-Fi/data is restored.', 'warning');
@@ -1341,6 +1392,7 @@ const app = {
     try {
       const resp = await api.submitAttendance(payload);
       if (resp && resp.success) {
+        this.saveLocalAttendanceSnapshot(stateObj.date, stateObj.batchId, stateObj.subjectId, { ...stateObj.attendanceMap });
         localStorage.removeItem('slaq_student_reports_cache');
         localStorage.removeItem('slaq_subject_reports_cache');
         this.showToast(`Successfully updated ${records.length} records for ${stateObj.date}!`, 'success');
@@ -1350,8 +1402,23 @@ const app = {
         throw new Error(resp?.message || 'Could not update records.');
       }
     } catch (err) {
-      console.error('[Save Daily Edit Error]', err);
-      this.showToast('Could not save changes: ' + err.message, 'error');
+      if (err.isNetworkError || !navigator.onLine) {
+        try {
+          await db.queueAttendance(payload);
+          this.saveLocalAttendanceSnapshot(stateObj.date, stateObj.batchId, stateObj.subjectId, { ...stateObj.attendanceMap });
+          localStorage.removeItem('slaq_student_reports_cache');
+          localStorage.removeItem('slaq_subject_reports_cache');
+          this.showToast('Updated offline! Will sync when connection is restored.', 'warning');
+          await this.loadSubjectDailyDateReport();
+          await this.loadSubjectReportData(stateObj.subjectId);
+        } catch (queueErr) {
+          console.error('[Offline Queue Critical Error]', queueErr);
+          this.showToast('Could not save changes offline: ' + queueErr.message, 'error');
+        }
+      } else {
+        console.error('[Save Daily Edit Error]', err);
+        this.showToast('Could not save changes: ' + err.message, 'error');
+      }
     } finally {
       if (saveBtn) {
         saveBtn.disabled = false;
