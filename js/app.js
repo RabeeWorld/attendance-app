@@ -1198,6 +1198,7 @@ const app = {
       const { summary, students } = resp;
 
       document.getElementById('rep-subject-percentage').textContent = `${summary.overall_percentage}%`;
+      document.getElementById('rep-subject-classes-taken').textContent = summary.total_classes_taken || 0;
       document.getElementById('rep-subject-present').textContent = summary.present;
       document.getElementById('rep-subject-late').textContent = summary.late || 0;
       document.getElementById('rep-subject-absent').textContent = summary.absent;
