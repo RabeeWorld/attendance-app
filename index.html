@@ -323,7 +323,24 @@
           </div>
 
           <div class="history-list-card glass-card">
-            <h3>Recent Attendance Logs</h3>
+            <h3 style="margin-bottom: 15px;">Recent Attendance Logs</h3>
+            
+            <!-- Mini Calendar -->
+            <div class="mini-calendar-wrapper">
+              <div class="mini-calendar-header">
+                <button id="mc-prev-month" class="mc-nav-btn">&lt;</button>
+                <div id="mc-month-year" class="mc-month-year">July 2026</div>
+                <button id="mc-next-month" class="mc-nav-btn">&gt;</button>
+              </div>
+              <div class="mini-calendar-days">
+                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+              </div>
+              <div id="mini-calendar-grid" class="mini-calendar-grid">
+                <!-- Days injected by JS -->
+              </div>
+            </div>
+            
+            <h4 id="mc-selected-date-label" style="margin-top: 20px; margin-bottom: 10px; color: var(--primary-color);"></h4>
             <div id="student-history-list" class="history-list"></div>
           </div>
         </div>

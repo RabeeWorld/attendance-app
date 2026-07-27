@@ -1347,6 +1347,96 @@ h1, h2, h3, h4 {
   to { transform: translateX(0); opacity: 1; }
 }
 
+/* Mini Calendar Styles */
+.mini-calendar-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.mini-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.mc-month-year {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+.mc-nav-btn {
+  background: #f1f5f9;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-weight: bold;
+  transition: all 0.2s;
+}
+.mc-nav-btn:hover {
+  background: #e2e8f0;
+}
+.mini-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.mini-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.mc-day {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+.mc-day.empty {
+  cursor: default;
+  background: transparent !important;
+}
+.mc-day:not(.empty):hover {
+  background: #f1f5f9;
+}
+.mc-day.has-data::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 5px;
+  height: 5px;
+  background-color: var(--primary);
+  border-radius: 50%;
+}
+.mc-day.selected {
+  background-color: var(--primary) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+}
+.mc-day.selected::after {
+  background-color: #fff;
+}
+
 /* Prevent Fixed Footer Overlap on Marking Screen */
 #marking-screen {
   padding-bottom: 110px;

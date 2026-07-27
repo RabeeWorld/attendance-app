@@ -1156,22 +1156,115 @@ const app = {
         return found ? found.subject_name : sid;
       };
 
+      // Group records by date
+      const groupedRecords = {};
       records.forEach(r => {
-        const item = document.createElement('div');
-        const st = String(r.status).toLowerCase();
-        const subjectDisplay = getSubjectName(r.subject_id);
-        item.className = `history-item status-${st}`;
-        item.innerHTML = `
-          <div>
-            <div class="history-date">${r.date}</div>
-            <div class="history-meta">Subject: ${subjectDisplay} · Marked by ${r.teacher || 'Teacher'}</div>
-          </div>
-          <span class="history-pill text-${st === 'present' ? 'green' : st === 'late' ? 'purple' : st === 'absent' ? 'red' : 'amber'}">
-            ${r.status === 'Present' ? '🟢 Present' : r.status === 'Late' ? '⏰ Late' : r.status === 'Absent' ? '🔴 Absent' : '🟡 Leave'}
-          </span>
-        `;
-        historyList.appendChild(item);
+        if (!groupedRecords[r.date]) groupedRecords[r.date] = [];
+        groupedRecords[r.date].push(r);
       });
+
+      // Calendar state
+      let currentDate = new Date();
+      if (records.length > 0) {
+        const firstRecordDate = new Date(records[0].date);
+        if (!isNaN(firstRecordDate)) currentDate = firstRecordDate;
+      }
+      
+      let selectedDateString = records.length > 0 ? records[0].date : null;
+
+      const renderCalendar = (dateObj) => {
+        const year = dateObj.getFullYear();
+        const month = dateObj.getMonth();
+        
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        document.getElementById('mc-month-year').textContent = `${monthNames[month]} ${year}`;
+        
+        const grid = document.getElementById('mini-calendar-grid');
+        grid.innerHTML = '';
+        
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        for (let i = 0; i < firstDay; i++) {
+          const empty = document.createElement('div');
+          empty.className = 'mc-day empty';
+          grid.appendChild(empty);
+        }
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dayCell = document.createElement('div');
+          dayCell.className = 'mc-day';
+          dayCell.textContent = i;
+          
+          const cellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+          
+          if (groupedRecords[cellDateStr]) {
+            dayCell.classList.add('has-data');
+          }
+          if (cellDateStr === selectedDateString) {
+            dayCell.classList.add('selected');
+          }
+          
+          dayCell.addEventListener('click', () => {
+            document.querySelectorAll('.mc-day').forEach(el => el.classList.remove('selected'));
+            dayCell.classList.add('selected');
+            selectedDateString = cellDateStr;
+            renderLogsForSelectedDate();
+          });
+          
+          grid.appendChild(dayCell);
+        }
+      };
+
+      const renderLogsForSelectedDate = () => {
+        historyList.innerHTML = '';
+        const label = document.getElementById('mc-selected-date-label');
+        
+        if (!selectedDateString) {
+          label.textContent = 'Select a date from the calendar';
+          return;
+        }
+        
+        const displayDate = new Date(selectedDateString);
+        label.textContent = `Logs for ${isNaN(displayDate) ? selectedDateString : displayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+        
+        const dayRecords = groupedRecords[selectedDateString] || [];
+        
+        if (dayRecords.length === 0) {
+          historyList.innerHTML = '<p class="text-muted py-3 text-center">No attendance tracked on this day.</p>';
+          return;
+        }
+        
+        dayRecords.forEach(r => {
+          const item = document.createElement('div');
+          const st = String(r.status).toLowerCase();
+          const subjectDisplay = getSubjectName(r.subject_id);
+          item.className = `history-item status-${st}`;
+          item.innerHTML = `
+            <div>
+              <div class="history-meta" style="font-weight:600; color:var(--text-primary); font-size:1rem; margin-bottom: 2px;">${subjectDisplay}</div>
+              <div class="history-meta" style="font-size:0.75rem;">Marked by ${r.teacher || 'Teacher'}</div>
+            </div>
+            <span class="history-pill text-${st === 'present' ? 'green' : st === 'late' ? 'purple' : st === 'absent' ? 'red' : 'amber'}">
+              ${r.status === 'Present' ? '🟢 Present' : r.status === 'Late' ? '⏰ Late' : r.status === 'Absent' ? '🔴 Absent' : '🟡 Leave'}
+            </span>
+          `;
+          historyList.appendChild(item);
+        });
+      };
+
+      document.getElementById('mc-prev-month').onclick = () => {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        renderCalendar(currentDate);
+      };
+      
+      document.getElementById('mc-next-month').onclick = () => {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        renderCalendar(currentDate);
+      };
+
+      renderCalendar(currentDate);
+      renderLogsForSelectedDate();
 
     } catch (error) {
       console.error('[Student Report Error]', error);
