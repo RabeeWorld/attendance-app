@@ -1649,3 +1649,9 @@ h1, h2, h3, h4 {
     width: 100%;
   }
 }
+
+/* Campus Presence Report Hiding Logic */
+#subject-overall-panel.campus-mode #subject-report-stats-grid,
+#subject-overall-panel.campus-mode .hide-on-campus {
+  display: none !important;
+}

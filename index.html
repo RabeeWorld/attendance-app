@@ -106,6 +106,13 @@
                 </div>
                 <span class="batch-subtitle" id="batch-count-B2">Advanced B2</span>
               </button>
+              <button type="button" class="batch-btn" data-batch-id="CAMPUS" data-batch-name="Campus Presence">
+                <div class="batch-btn-header">
+                  <span class="batch-icon">🏫</span>
+                  <span class="batch-title">Campus Presence</span>
+                </div>
+                <span class="batch-subtitle" id="batch-count-CAMPUS">All Students</span>
+              </button>
             </div>
             <input type="hidden" id="batch-hidden-input" required>
           </div>
@@ -159,6 +166,16 @@
           <label for="daily-inspection-subject-selector">Select Subject</label>
           <select id="daily-inspection-subject-selector" class="form-control custom-select">
             <option value="" disabled selected>Loading subjects...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Card 1b: Select Campus Presence -->
+      <div class="setup-card glass-card mb-4">
+        <div class="form-group mb-0">
+          <label for="daily-inspection-campus-selector">Campus Presence</label>
+          <select id="daily-inspection-campus-selector" class="form-control custom-select">
+            <option value="" disabled selected>Loading check-ins...</option>
           </select>
         </div>
       </div>
@@ -325,7 +342,7 @@
         <div id="subject-report-content" class="report-content hidden">
           <!-- Overall Semester Panel -->
           <div id="subject-overall-panel">
-            <div class="stats-grid">
+            <div id="subject-report-stats-grid" class="stats-grid">
               <div class="stat-card glass-card">
                 <span class="stat-label">Class Attendance Rate</span>
                 <span id="rep-subject-percentage" class="stat-value highlight-blue">0%</span>
@@ -362,10 +379,10 @@
                       <th class="rep-col-roll text-center">Roll</th>
                       <th class="rep-col-name">Name</th>
                       <th class="rep-col-stat text-center"><span class="header-full">Present</span><span class="header-mobile">P</span></th>
-                      <th class="rep-col-stat text-center"><span class="header-full">Late</span><span class="header-mobile">LT</span></th>
+                      <th class="rep-col-stat text-center hide-on-campus"><span class="header-full">Late</span><span class="header-mobile">LT</span></th>
                       <th class="rep-col-stat text-center"><span class="header-full">Absent</span><span class="header-mobile">A</span></th>
-                      <th class="rep-col-stat text-center"><span class="header-full">Leave</span><span class="header-mobile">LV</span></th>
-                      <th class="rep-col-rate text-center" title="(P + LT) / (P + LT + AB + LV) * 100">
+                      <th class="rep-col-stat text-center hide-on-campus"><span class="header-full">Leave</span><span class="header-mobile">LV</span></th>
+                      <th class="rep-col-rate text-center hide-on-campus" title="(P + LT) / (P + LT + AB + LV) * 100">
                         <span class="header-full">Rate %<br><small style="font-size:0.75rem; font-weight:normal; opacity:0.85; white-space: nowrap;">(P + LT) / (P + LT + AB + LV)</small></span>
                         <span class="header-mobile">Avg %<br><small style="font-size:0.63rem; font-weight:normal; opacity:0.85; white-space: nowrap;">(P+L)/(P+L+A+LV)</small></span>
                       </th>

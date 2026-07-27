@@ -444,8 +444,18 @@ const app = {
     }
 
     const dailySubjectSelector = document.getElementById('daily-inspection-subject-selector');
+    const dailyCampusSelector = document.getElementById('daily-inspection-campus-selector');
+
     if (dailySubjectSelector) {
       dailySubjectSelector.addEventListener('change', async () => {
+        if (dailyCampusSelector) dailyCampusSelector.value = ''; // Reset the other dropdown
+        await this.loadSubjectDailyDateReport();
+      });
+    }
+
+    if (dailyCampusSelector) {
+      dailyCampusSelector.addEventListener('change', async () => {
+        if (dailySubjectSelector) dailySubjectSelector.value = ''; // Reset the other dropdown
         await this.loadSubjectDailyDateReport();
       });
     }
@@ -512,8 +522,10 @@ const app = {
             }
             if (Array.isArray(res.subjectsB1) && res.subjectsB1.length > 0) this.state.subjectsCache['B1'] = res.subjectsB1;
             if (Array.isArray(res.subjectsB2) && res.subjectsB2.length > 0) this.state.subjectsCache['B2'] = res.subjectsB2;
+            if (Array.isArray(res.subjectsCampus) && res.subjectsCampus.length > 0) this.state.subjectsCache['CAMPUS'] = res.subjectsCampus;
             if (Array.isArray(res.studentsB1) && res.studentsB1.length > 0) this.state.studentsCache['B1'] = res.studentsB1;
             if (Array.isArray(res.studentsB2) && res.studentsB2.length > 0) this.state.studentsCache['B2'] = res.studentsB2;
+            if (Array.isArray(res.studentsCampus) && res.studentsCampus.length > 0) this.state.studentsCache['CAMPUS'] = res.studentsCampus;
 
             localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
             localStorage.setItem('slaq_students_cache', JSON.stringify(this.state.studentsCache));
@@ -533,7 +545,7 @@ const app = {
               });
             }
           }).catch(() => {});
-          ['B1', 'B2'].forEach(bId => {
+          ['B1', 'B2', 'CAMPUS'].forEach(bId => {
             api.getSubjects(bId).then(res => {
               if (res && res.success && Array.isArray(res.subjects) && res.subjects.length > 0) {
                 this.state.subjectsCache[bId] = res.subjects;
@@ -776,13 +788,46 @@ const app = {
 
     const tbody = table.querySelector('#attendance-tbody');
 
-    this.state.students.forEach(student => {
+    const isCampus = String(this.state.batchId).trim().toUpperCase() === 'CAMPUS';
+    let currentBatchGroup = null;
+
+    // Sort students by batch_id then roll_no so headers don't repeat
+    const sortedStudents = [...this.state.students].sort((a, b) => {
+      if (isCampus) {
+        const batchDiff = String(a.batch_id || '').localeCompare(String(b.batch_id || ''));
+        if (batchDiff !== 0) return batchDiff;
+      }
+      return Number(a.roll_no) - Number(b.roll_no);
+    });
+
+    sortedStudents.forEach(student => {
       const sid = String(student.student_id).trim();
       const currentStatus = this.state.attendanceMap[sid] || 'Present';
+
+      // Insert Batch Separation Header if CAMPUS
+      if (isCampus && student.batch_id !== currentBatchGroup) {
+        currentBatchGroup = student.batch_id;
+        const headerRow = document.createElement('tr');
+        headerRow.className = 'batch-separator-row';
+        headerRow.innerHTML = `<th colspan="3" style="text-align: left; padding: 12px; background: rgba(0,0,0,0.05); font-weight: 600; color: #475569; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Batch ${currentBatchGroup}</th>`;
+        tbody.appendChild(headerRow);
+      }
 
       const row = document.createElement('tr');
       row.className = `student-tr status-${currentStatus.toLowerCase()}`;
       row.id = `row-${sid}`;
+
+      const lateBtn = isCampus ? '' : `
+            <button type="button" class="status-pill late ${currentStatus === 'Late' ? 'active' : ''}" 
+                    data-student="${sid}" data-status="Late" title="Mark Late">
+              <span class="status-full">⏰ Late</span><span class="status-mobile">Lt</span>
+            </button>`;
+      
+      const leaveBtn = isCampus ? '' : `
+            <button type="button" class="status-pill leave ${currentStatus === 'Leave' ? 'active' : ''}" 
+                    data-student="${sid}" data-status="Leave" title="Mark Leave">
+              <span class="status-full">🟡 Leave</span><span class="status-mobile">L</span>
+            </button>`;
 
       row.innerHTML = `
         <td class="col-roll">
@@ -792,23 +837,17 @@ const app = {
           <span class="name-text">${student.name}</span>
         </td>
         <td class="col-status">
-          <div class="status-selector-table">
+          <div class="status-selector-table ${isCampus ? 'campus-mode' : ''}">
             <button type="button" class="status-pill present ${currentStatus === 'Present' ? 'active' : ''}" 
                     data-student="${sid}" data-status="Present" title="Mark Present">
               <span class="status-full">🟢 Present</span><span class="status-mobile">P</span>
             </button>
-            <button type="button" class="status-pill late ${currentStatus === 'Late' ? 'active' : ''}" 
-                    data-student="${sid}" data-status="Late" title="Mark Late">
-              <span class="status-full">⏰ Late</span><span class="status-mobile">Lt</span>
-            </button>
+            ${lateBtn}
             <button type="button" class="status-pill absent ${currentStatus === 'Absent' ? 'active' : ''}" 
                     data-student="${sid}" data-status="Absent" title="Mark Absent">
               <span class="status-full">🔴 Absent</span><span class="status-mobile">A</span>
             </button>
-            <button type="button" class="status-pill leave ${currentStatus === 'Leave' ? 'active' : ''}" 
-                    data-student="${sid}" data-status="Leave" title="Mark Leave">
-              <span class="status-full">🟡 Leave</span><span class="status-mobile">L</span>
-            </button>
+            ${leaveBtn}
           </div>
         </td>
       `;
@@ -941,12 +980,16 @@ const app = {
     // Instant 0ms Load from Local Cache!
     const cachedStudentsB1 = this.state.studentsCache['B1'] || [];
     const cachedStudentsB2 = this.state.studentsCache['B2'] || [];
-    const allCachedStudents = [...cachedStudentsB1, ...cachedStudentsB2];
+    const cachedStudentsCampus = this.state.studentsCache['CAMPUS'] || [];
+    const allCachedStudentsMap = new Map();
+    [...cachedStudentsB1, ...cachedStudentsB2, ...cachedStudentsCampus].forEach(s => allCachedStudentsMap.set(s.student_id, s));
+    const allCachedStudents = Array.from(allCachedStudentsMap.values());
 
     const cachedSubjectsB1 = this.state.subjectsCache['B1'] || [];
     const cachedSubjectsB2 = this.state.subjectsCache['B2'] || [];
+    const cachedSubjectsCampus = this.state.subjectsCache['CAMPUS'] || [];
     const allCachedSubjectsMap = new Map();
-    [...cachedSubjectsB1, ...cachedSubjectsB2].forEach(sub => allCachedSubjectsMap.set(sub.subject_id, sub));
+    [...cachedSubjectsB1, ...cachedSubjectsB2, ...cachedSubjectsCampus].forEach(sub => allCachedSubjectsMap.set(sub.subject_id, sub));
 
     if (allCachedStudents.length > 0) {
       const curStudent = studentSelector.value;
@@ -983,8 +1026,9 @@ const app = {
         api.getStudents('B1').catch(() => ({ students: [] })),
         api.getStudents('B2').catch(() => ({ students: [] })),
         api.getSubjects('B1').catch(() => ({ subjects: [] })),
-        api.getSubjects('B2').catch(() => ({ subjects: [] }))
-      ]).then(([studentsB1, studentsB2, subjectsB1, subjectsB2]) => {
+        api.getSubjects('B2').catch(() => ({ subjects: [] })),
+        api.getSubjects('CAMPUS').catch(() => ({ subjects: [] }))
+      ]).then(([studentsB1, studentsB2, subjectsB1, subjectsB2, subjectsCampus]) => {
         const allStudents = [...(studentsB1.students || []), ...(studentsB2.students || [])];
         if (allStudents.length > 0) {
           if (Array.isArray(studentsB1.students)) this.state.studentsCache['B1'] = studentsB1.students;
@@ -1005,12 +1049,13 @@ const app = {
         }
 
         const allSubjectsMap = new Map();
-        [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || [])].forEach(sub => {
+        [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || []), ...(subjectsCampus.subjects || [])].forEach(sub => {
           allSubjectsMap.set(sub.subject_id, sub);
         });
         this.state.reportsSubjectsMap = allSubjectsMap;
         if (Array.isArray(subjectsB1.subjects)) this.state.subjectsCache['B1'] = subjectsB1.subjects;
         if (Array.isArray(subjectsB2.subjects)) this.state.subjectsCache['B2'] = subjectsB2.subjects;
+        if (Array.isArray(subjectsCampus.subjects)) this.state.subjectsCache['CAMPUS'] = subjectsCampus.subjects;
         localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
 
         if (allCachedSubjectsMap.size === 0 || subjectSelector.options.length <= 1) {
@@ -1108,6 +1153,19 @@ const app = {
 
       const { summary, students } = resp;
 
+      // Determine if it's a CAMPUS subject
+      const subInfo = this.state.reportsSubjectsMap ? this.state.reportsSubjectsMap.get(subjectId) : null;
+      const isCampus = subInfo && String(subInfo.batch_id).trim().toUpperCase() === 'CAMPUS';
+
+      const overallPanel = document.getElementById('subject-overall-panel');
+      if (overallPanel) {
+        if (isCampus) {
+          overallPanel.classList.add('campus-mode');
+        } else {
+          overallPanel.classList.remove('campus-mode');
+        }
+      }
+
       document.getElementById('rep-subject-percentage').textContent = `${summary.overall_percentage}%`;
       document.getElementById('rep-subject-present').textContent = summary.present;
       document.getElementById('rep-subject-late').textContent = summary.late || 0;
@@ -1126,10 +1184,10 @@ const app = {
           <td class="rep-col-roll text-center"><strong>${s.roll_no}</strong></td>
           <td class="rep-col-name">${s.name}</td>
           <td class="rep-col-stat text-green font-bold text-center">${s.present}</td>
-          <td class="rep-col-stat text-purple font-bold text-center">${s.late || 0}</td>
+          <td class="rep-col-stat text-purple font-bold text-center hide-on-campus">${s.late || 0}</td>
           <td class="rep-col-stat text-red font-bold text-center">${s.absent}</td>
-          <td class="rep-col-stat text-amber font-bold text-center">${s.leave}</td>
-          <td class="rep-col-rate text-center">
+          <td class="rep-col-stat text-amber font-bold text-center hide-on-campus">${s.leave}</td>
+          <td class="rep-col-rate text-center hide-on-campus">
             <span class="pill ${s.percentage >= 75 ? 'highlight-blue' : s.percentage < 50 ? 'text-red' : ''}">
               ${s.percentage}%
             </span>
@@ -1164,48 +1222,83 @@ const app = {
     // Instant 0ms Load from Local Cache!
     const cachedB1 = this.state.subjectsCache['B1'] || [];
     const cachedB2 = this.state.subjectsCache['B2'] || [];
+    const cachedCampus = this.state.subjectsCache['CAMPUS'] || [];
     const allCachedMap = new Map();
-    [...cachedB1, ...cachedB2].forEach(sub => allCachedMap.set(sub.subject_id, sub));
+    [...cachedB1, ...cachedB2, ...cachedCampus].forEach(sub => allCachedMap.set(sub.subject_id, sub));
 
     if (allCachedMap.size > 0) {
       this.state.reportsSubjectsMap = allCachedMap;
       const currentSelection = subjectSelector.value;
       subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+      
+      const campusSelector = document.getElementById('daily-inspection-campus-selector');
+      const currentCampusSelection = campusSelector ? campusSelector.value : '';
+      if (campusSelector) campusSelector.innerHTML = '<option value="" disabled selected>Choose Check-in</option>';
+
       allCachedMap.forEach(sub => {
-        const opt = document.createElement('option');
-        opt.value = sub.subject_id;
-        opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
-        if (sub.subject_id === currentSelection) opt.selected = true;
-        subjectSelector.appendChild(opt);
+        if (sub.batch_id === 'CAMPUS') {
+          if (campusSelector) {
+            const opt = document.createElement('option');
+            opt.value = sub.subject_id;
+            opt.textContent = sub.subject_name;
+            if (sub.subject_id === currentCampusSelection) opt.selected = true;
+            campusSelector.appendChild(opt);
+          }
+        } else {
+          const opt = document.createElement('option');
+          opt.value = sub.subject_id;
+          opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
+          if (sub.subject_id === currentSelection) opt.selected = true;
+          subjectSelector.appendChild(opt);
+        }
       });
     } else {
       subjectSelector.innerHTML = '<option value="" disabled selected>Loading subjects...</option>';
+      const campusSelector = document.getElementById('daily-inspection-campus-selector');
+      if (campusSelector) campusSelector.innerHTML = '<option value="" disabled selected>Loading check-ins...</option>';
     }
 
     // Stale-While-Revalidate background sync
     if (navigator.onLine) {
       Promise.all([
         api.getSubjects('B1').catch(() => ({ subjects: [] })),
-        api.getSubjects('B2').catch(() => ({ subjects: [] }))
-      ]).then(([subjectsB1, subjectsB2]) => {
+        api.getSubjects('B2').catch(() => ({ subjects: [] })),
+        api.getSubjects('CAMPUS').catch(() => ({ subjects: [] }))
+      ]).then(([subjectsB1, subjectsB2, subjectsCampus]) => {
         const allSubjectsMap = new Map();
-        [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || [])].forEach(sub => {
+        [...(subjectsB1.subjects || []), ...(subjectsB2.subjects || []), ...(subjectsCampus.subjects || [])].forEach(sub => {
           allSubjectsMap.set(sub.subject_id, sub);
         });
         this.state.reportsSubjectsMap = allSubjectsMap;
         if (Array.isArray(subjectsB1.subjects)) this.state.subjectsCache['B1'] = subjectsB1.subjects;
         if (Array.isArray(subjectsB2.subjects)) this.state.subjectsCache['B2'] = subjectsB2.subjects;
+        if (Array.isArray(subjectsCampus.subjects)) this.state.subjectsCache['CAMPUS'] = subjectsCampus.subjects;
         localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
 
         if (allCachedMap.size === 0 || subjectSelector.options.length <= 1) {
           const currentSelection = subjectSelector.value;
           subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+          
+          const campusSelector = document.getElementById('daily-inspection-campus-selector');
+          const currentCampusSelection = campusSelector ? campusSelector.value : '';
+          if (campusSelector) campusSelector.innerHTML = '<option value="" disabled selected>Choose Check-in</option>';
+
           allSubjectsMap.forEach(sub => {
-            const opt = document.createElement('option');
-            opt.value = sub.subject_id;
-            opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
-            if (sub.subject_id === currentSelection) opt.selected = true;
-            subjectSelector.appendChild(opt);
+            if (sub.batch_id === 'CAMPUS') {
+              if (campusSelector) {
+                const opt = document.createElement('option');
+                opt.value = sub.subject_id;
+                opt.textContent = sub.subject_name;
+                if (sub.subject_id === currentCampusSelection) opt.selected = true;
+                campusSelector.appendChild(opt);
+              }
+            } else {
+              const opt = document.createElement('option');
+              opt.value = sub.subject_id;
+              opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
+              if (sub.subject_id === currentSelection) opt.selected = true;
+              subjectSelector.appendChild(opt);
+            }
           });
         }
       }).catch(e => console.warn('[Daily Inspection Sync] Maintaining cached subjects options:', e.message));
@@ -1217,6 +1310,7 @@ const app = {
    */
   async loadSubjectDailyDateReport() {
     const subjectSelector = document.getElementById('daily-inspection-subject-selector') || document.getElementById('report-subject-selector');
+    const campusSelector = document.getElementById('daily-inspection-campus-selector');
     const datePicker = document.getElementById('daily-inspection-date-picker') || document.getElementById('subject-report-date-picker');
     const tbody = document.getElementById('subject-daily-tbody');
     const editBtn = document.getElementById('edit-daily-attendance-btn');
@@ -1224,14 +1318,16 @@ const app = {
     const cancelBtn = document.getElementById('cancel-daily-attendance-btn');
     const dateLabel = document.getElementById('rep-daily-date-label');
 
-    if (!subjectSelector || !subjectSelector.value) {
+    const activeSubjectId = (campusSelector && campusSelector.value) ? campusSelector.value : (subjectSelector ? subjectSelector.value : null);
+
+    if (!activeSubjectId) {
       if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Select a subject to view daily snapshot</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Select a subject or campus check-in to view daily snapshot</td></tr>';
       }
       return;
     }
 
-    const subjectId = subjectSelector.value;
+    const subjectId = activeSubjectId;
     const selectedDate = datePicker && datePicker.value ? datePicker.value : this.state.date;
     if (datePicker && !datePicker.value) {
       datePicker.value = selectedDate;
@@ -1289,7 +1385,18 @@ const app = {
         return;
       }
 
-      studentsList.forEach(s => {
+      const isCampus = String(batchId).trim().toUpperCase() === 'CAMPUS';
+      let currentBatchGroup = null;
+
+      const sortedStudentsList = [...studentsList].sort((a, b) => {
+        if (isCampus) {
+          const batchDiff = String(a.batch_id || '').localeCompare(String(b.batch_id || ''));
+          if (batchDiff !== 0) return batchDiff;
+        }
+        return Number(a.roll_no) - Number(b.roll_no);
+      });
+
+      sortedStudentsList.forEach(s => {
         const sid = String(s.student_id).trim();
         const st = attMap[sid];
 
@@ -1298,6 +1405,14 @@ const app = {
         else if (st === 'Absent') absentCount++;
         else if (st === 'Leave') leaveCount++;
         else unmarkedCount++;
+
+        if (isCampus && s.batch_id !== currentBatchGroup) {
+          currentBatchGroup = s.batch_id;
+          const headerRow = document.createElement('tr');
+          headerRow.className = 'batch-separator-row';
+          headerRow.innerHTML = `<th colspan="3" style="text-align: left; padding: 12px; background: rgba(0,0,0,0.05); font-weight: 600; color: #475569; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Batch ${currentBatchGroup}</th>`;
+          tbody.appendChild(headerRow);
+        }
 
         const tr = document.createElement('tr');
         tr.className = `daily-tr status-${st ? st.toLowerCase() : 'unmarked'}`;
@@ -1374,12 +1489,20 @@ const app = {
 
         const statusCell = tr.querySelector('.daily-status-cell');
         if (statusCell) {
+          const isCampus = String(this.state.dailyInspectionState.batchId).trim().toUpperCase() === 'CAMPUS';
+          
+          const lateBtn = isCampus ? '' : `
+              <button type="button" class="status-pill late ${currentSt === 'Late' ? 'active' : ''}" data-sid="${sid}" data-status="Late" title="Mark Late"><span class="status-full">⏰ Late</span><span class="status-mobile">Lt</span></button>`;
+          
+          const leaveBtn = isCampus ? '' : `
+              <button type="button" class="status-pill leave ${currentSt === 'Leave' ? 'active' : ''}" data-sid="${sid}" data-status="Leave" title="Mark Leave"><span class="status-full">🟡 Leave</span><span class="status-mobile">L</span></button>`;
+
           statusCell.innerHTML = `
-            <div class="status-selector-table">
+            <div class="status-selector-table ${isCampus ? 'campus-mode' : ''}">
               <button type="button" class="status-pill present ${currentSt === 'Present' ? 'active' : ''}" data-sid="${sid}" data-status="Present" title="Mark Present"><span class="status-full">🟢 Present</span><span class="status-mobile">P</span></button>
-              <button type="button" class="status-pill late ${currentSt === 'Late' ? 'active' : ''}" data-sid="${sid}" data-status="Late" title="Mark Late"><span class="status-full">⏰ Late</span><span class="status-mobile">Lt</span></button>
+              ${lateBtn}
               <button type="button" class="status-pill absent ${currentSt === 'Absent' ? 'active' : ''}" data-sid="${sid}" data-status="Absent" title="Mark Absent"><span class="status-full">🔴 Absent</span><span class="status-mobile">A</span></button>
-              <button type="button" class="status-pill leave ${currentSt === 'Leave' ? 'active' : ''}" data-sid="${sid}" data-status="Leave" title="Mark Leave"><span class="status-full">🟡 Leave</span><span class="status-mobile">L</span></button>
+              ${leaveBtn}
             </div>
           `;
         }
