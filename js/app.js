@@ -391,25 +391,40 @@ const app = {
       });
     }
 
-    // 8. Report Type Tabs (Student vs Subject)
+    // 8. Report Type Tabs (Student vs Subject vs Campus)
     const tabStudentBtn = document.getElementById('tab-student-btn');
     const tabSubjectBtn = document.getElementById('tab-subject-btn');
+    const tabCampusBtn = document.getElementById('tab-campus-btn');
     const studentPanel = document.getElementById('student-report-panel');
     const subjectPanel = document.getElementById('subject-report-panel');
+    const campusPanel = document.getElementById('campus-report-panel');
 
-    if (tabStudentBtn && tabSubjectBtn) {
+    if (tabStudentBtn && tabSubjectBtn && tabCampusBtn) {
       tabStudentBtn.addEventListener('click', () => {
         tabStudentBtn.classList.add('active-tab');
         tabSubjectBtn.classList.remove('active-tab');
+        tabCampusBtn.classList.remove('active-tab');
         studentPanel.classList.remove('hidden');
         subjectPanel.classList.add('hidden');
+        campusPanel.classList.add('hidden');
       });
 
       tabSubjectBtn.addEventListener('click', () => {
         tabSubjectBtn.classList.add('active-tab');
         tabStudentBtn.classList.remove('active-tab');
+        tabCampusBtn.classList.remove('active-tab');
         subjectPanel.classList.remove('hidden');
         studentPanel.classList.add('hidden');
+        campusPanel.classList.add('hidden');
+      });
+
+      tabCampusBtn.addEventListener('click', () => {
+        tabCampusBtn.classList.add('active-tab');
+        tabStudentBtn.classList.remove('active-tab');
+        tabSubjectBtn.classList.remove('active-tab');
+        campusPanel.classList.remove('hidden');
+        studentPanel.classList.add('hidden');
+        subjectPanel.classList.add('hidden');
       });
     }
 
@@ -425,6 +440,13 @@ const app = {
     if (repSubjectSelector) {
       repSubjectSelector.addEventListener('change', async (e) => {
         await this.loadSubjectReportData(e.target.value);
+      });
+    }
+
+    const repCampusSelector = document.getElementById('report-campus-selector');
+    if (repCampusSelector) {
+      repCampusSelector.addEventListener('change', async (e) => {
+        await this.loadCampusReportData(e.target.value);
       });
     }
 
@@ -976,6 +998,7 @@ const app = {
   async initReportsScreen() {
     const studentSelector = document.getElementById('report-student-selector');
     const subjectSelector = document.getElementById('report-subject-selector');
+    const campusSelector = document.getElementById('report-campus-selector');
 
     // Instant 0ms Load from Local Cache!
     const cachedStudentsB1 = this.state.studentsCache['B1'] || [];
@@ -1008,16 +1031,27 @@ const app = {
     if (allCachedSubjectsMap.size > 0) {
       this.state.reportsSubjectsMap = allCachedSubjectsMap;
       const curSubject = subjectSelector.value;
+      const curCampus = campusSelector ? campusSelector.value : '';
       subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+      if (campusSelector) campusSelector.innerHTML = '<option value="" disabled selected>Choose Campus Presence</option>';
+
       allCachedSubjectsMap.forEach(sub => {
         const opt = document.createElement('option');
         opt.value = sub.subject_id;
         opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
-        if (sub.subject_id === curSubject) opt.selected = true;
-        subjectSelector.appendChild(opt);
+        if (String(sub.batch_id).trim().toUpperCase() === 'CAMPUS') {
+          if (campusSelector) {
+            if (sub.subject_id === curCampus) opt.selected = true;
+            campusSelector.appendChild(opt);
+          }
+        } else {
+          if (sub.subject_id === curSubject) opt.selected = true;
+          subjectSelector.appendChild(opt);
+        }
       });
     } else {
       subjectSelector.innerHTML = '<option value="" disabled selected>Loading subjects...</option>';
+      if (campusSelector) campusSelector.innerHTML = '<option value="" disabled selected>Loading presence...</option>';
     }
 
     // Stale-While-Revalidate background sync
@@ -1060,13 +1094,23 @@ const app = {
 
         if (allCachedSubjectsMap.size === 0 || subjectSelector.options.length <= 1) {
           const curSubject = subjectSelector.value;
+          const curCampus = campusSelector ? campusSelector.value : '';
           subjectSelector.innerHTML = '<option value="" disabled selected>Choose Subject</option>';
+          if (campusSelector) campusSelector.innerHTML = '<option value="" disabled selected>Choose Campus Presence</option>';
+
           allSubjectsMap.forEach(sub => {
             const opt = document.createElement('option');
             opt.value = sub.subject_id;
             opt.textContent = `${sub.subject_name} (${sub.batch_id})`;
-            if (sub.subject_id === curSubject) opt.selected = true;
-            subjectSelector.appendChild(opt);
+            if (String(sub.batch_id).trim().toUpperCase() === 'CAMPUS') {
+              if (campusSelector) {
+                if (sub.subject_id === curCampus) opt.selected = true;
+                campusSelector.appendChild(opt);
+              }
+            } else {
+              if (sub.subject_id === curSubject) opt.selected = true;
+              subjectSelector.appendChild(opt);
+            }
           });
         }
       }).catch(e => console.warn('[Reports Sync] Maintaining cached dropdown options:', e.message));
@@ -1153,19 +1197,6 @@ const app = {
 
       const { summary, students } = resp;
 
-      // Determine if it's a CAMPUS subject
-      const subInfo = this.state.reportsSubjectsMap ? this.state.reportsSubjectsMap.get(subjectId) : null;
-      const isCampus = subInfo && String(subInfo.batch_id).trim().toUpperCase() === 'CAMPUS';
-
-      const overallPanel = document.getElementById('subject-overall-panel');
-      if (overallPanel) {
-        if (isCampus) {
-          overallPanel.classList.add('campus-mode');
-        } else {
-          overallPanel.classList.remove('campus-mode');
-        }
-      }
-
       document.getElementById('rep-subject-percentage').textContent = `${summary.overall_percentage}%`;
       document.getElementById('rep-subject-present').textContent = summary.present;
       document.getElementById('rep-subject-late').textContent = summary.late || 0;
@@ -1184,10 +1215,10 @@ const app = {
           <td class="rep-col-roll text-center"><strong>${s.roll_no}</strong></td>
           <td class="rep-col-name">${s.name}</td>
           <td class="rep-col-stat text-green font-bold text-center">${s.present}</td>
-          <td class="rep-col-stat text-purple font-bold text-center hide-on-campus">${s.late || 0}</td>
+          <td class="rep-col-stat text-purple font-bold text-center">${s.late || 0}</td>
           <td class="rep-col-stat text-red font-bold text-center">${s.absent}</td>
-          <td class="rep-col-stat text-amber font-bold text-center hide-on-campus">${s.leave}</td>
-          <td class="rep-col-rate text-center hide-on-campus">
+          <td class="rep-col-stat text-amber font-bold text-center">${s.leave}</td>
+          <td class="rep-col-rate text-center">
             <span class="pill ${s.percentage >= 75 ? 'highlight-blue' : s.percentage < 50 ? 'text-red' : ''}">
               ${s.percentage}%
             </span>
@@ -1199,6 +1230,55 @@ const app = {
     } catch (error) {
       console.error('[Subject Report Error]', error);
       tbody.innerHTML = `<tr><td colspan="6" class="text-center text-red font-bold py-3">Error loading report: ${error.message}</td></tr>`;
+    }
+  },
+
+  /**
+   * Load and render Campus Report
+   */
+  async loadCampusReportData(subjectId) {
+    const contentPanel = document.getElementById('campus-report-content');
+    const tbody = document.getElementById('campus-students-tbody');
+
+    contentPanel.classList.remove('hidden');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner"></div><p>Calculating presence across all students...</p></td></tr>';
+
+    try {
+      const resp = await api.getSubjectReport(subjectId);
+      if (!resp || !resp.success) {
+        throw new Error(resp?.message || 'Could not fetch campus report.');
+      }
+
+      const { students } = resp;
+
+      tbody.innerHTML = '';
+      if (!Array.isArray(students) || students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No active students registered for this campus presence.</td></tr>';
+        return;
+      }
+
+      students.sort((a, b) => {
+        const batchA = a.batch_id || '';
+        const batchB = b.batch_id || '';
+        if (batchA < batchB) return -1;
+        if (batchA > batchB) return 1;
+        return Number(a.roll_no) - Number(b.roll_no);
+      });
+
+      students.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="rep-col-roll text-center"><strong>${s.roll_no}</strong></td>
+          <td class="rep-col-name">${s.name}</td>
+          <td class="rep-col-stat text-green font-bold text-center">${s.present}</td>
+          <td class="rep-col-stat text-red font-bold text-center">${s.absent}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+    } catch (error) {
+      console.error('[Campus Report Error]', error);
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center text-red font-bold py-3">Error loading report: ${error.message}</td></tr>`;
     }
   },
 

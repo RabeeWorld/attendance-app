@@ -279,6 +279,7 @@
       <div class="report-tabs">
         <button id="tab-student-btn" class="tab-btn active-tab">👤 Student Report</button>
         <button id="tab-subject-btn" class="tab-btn">📚 Subject Report</button>
+        <button id="tab-campus-btn" class="tab-btn">🏫 Campus Report</button>
       </div>
 
       <!-- Student Report Panel -->
@@ -389,6 +390,39 @@
                     </tr>
                   </thead>
                   <tbody id="subject-students-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Campus Report Panel -->
+      <div id="campus-report-panel" class="report-panel hidden">
+        <div class="filter-bar glass-card">
+          <div class="form-group mb-0">
+            <label for="report-campus-selector">Select Campus Presence</label>
+            <select id="report-campus-selector" class="form-control custom-select">
+              <option value="" disabled selected>Loading presence...</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="campus-report-content" class="report-content hidden">
+          <div id="campus-overall-panel">
+            <div class="history-list-card glass-card">
+              <h3>Student Breakdown</h3>
+              <div class="table-responsive">
+                <table class="report-table subject-breakdown-table">
+                  <thead>
+                    <tr>
+                      <th class="rep-col-roll text-center">Roll</th>
+                      <th class="rep-col-name">Name</th>
+                      <th class="rep-col-stat text-center"><span class="header-full">Present</span><span class="header-mobile">P</span></th>
+                      <th class="rep-col-stat text-center"><span class="header-full">Absent</span><span class="header-mobile">A</span></th>
+                    </tr>
+                  </thead>
+                  <tbody id="campus-students-tbody"></tbody>
                 </table>
               </div>
             </div>
