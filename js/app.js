@@ -1335,6 +1335,30 @@ const app = {
     const tbody = document.getElementById('campus-students-tbody');
 
     contentPanel.classList.remove('hidden');
+
+    const morningCard = document.getElementById('card-morning-checkin');
+    const nightCard = document.getElementById('card-night-checkin');
+    const morningVal = document.getElementById('rep-campus-morning-days');
+    const nightVal = document.getElementById('rep-campus-night-days');
+
+    const campusSelector = document.getElementById('report-campus-selector');
+    const selectedText = campusSelector && campusSelector.options.length > 0 && campusSelector.selectedIndex >= 0 
+                         ? campusSelector.options[campusSelector.selectedIndex].text.toLowerCase() 
+                         : '';
+
+    if (selectedText.includes('morning')) {
+      if (morningCard) morningCard.classList.remove('hidden');
+      if (nightCard) nightCard.classList.add('hidden');
+      if (morningVal) morningVal.textContent = '...';
+    } else if (selectedText.includes('night')) {
+      if (morningCard) morningCard.classList.add('hidden');
+      if (nightCard) nightCard.classList.remove('hidden');
+      if (nightVal) nightVal.textContent = '...';
+    } else {
+      if (morningCard) morningCard.classList.add('hidden');
+      if (nightCard) nightCard.classList.add('hidden');
+    }
+
     tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner"></div><p>Calculating presence across all students...</p></td></tr>';
 
     try {
@@ -1343,7 +1367,13 @@ const app = {
         throw new Error(resp?.message || 'Could not fetch campus report.');
       }
 
-      const { students } = resp;
+      const { students, summary } = resp;
+
+      if (selectedText.includes('morning')) {
+        if (morningVal) morningVal.textContent = summary.total_classes_taken || 0;
+      } else if (selectedText.includes('night')) {
+        if (nightVal) nightVal.textContent = summary.total_classes_taken || 0;
+      }
 
       tbody.innerHTML = '';
       if (!Array.isArray(students) || students.length === 0) {
