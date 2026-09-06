@@ -102,10 +102,48 @@ const app = {
     const loggedIn = localStorage.getItem('slaq_auth_logged_in') === 'true';
     if (loggedIn) {
       this.state.isAuthenticated = true;
-      this.showScreen('home-screen');
-      await this.loadHomeSetupData();
+      try {
+        const savedUser = JSON.parse(localStorage.getItem('slaq_auth_user'));
+        if (savedUser) this.state.user = savedUser;
+      } catch (e) {}
+      this.applyRBACAndRoute();
     } else {
       this.showScreen('login-screen');
+    }
+  },
+
+  applyRBACAndRoute() {
+    const user = this.state.user || { role: 'TEACHER' }; // Fallback
+    const role = (user.role || '').toUpperCase();
+    
+    // Grab UI elements
+    const homeNavBtn = document.getElementById('nav-home');
+    const reportTabs = document.querySelector('.report-tabs');
+    const studentReportSelectorArea = document.querySelector('#student-report-panel .filter-bar');
+    
+    if (role === 'STUDENT') {
+      // Hide marking screen nav
+      if (homeNavBtn) homeNavBtn.style.display = 'none';
+      // Hide report tabs and selector
+      if (reportTabs) reportTabs.style.display = 'none';
+      if (studentReportSelectorArea) studentReportSelectorArea.style.display = 'none';
+      
+      this.showScreen('reports-screen');
+      
+      // Auto-load student report for this student
+      if (user.linked_student_id) {
+        this.loadStudentReportData(user.linked_student_id);
+      } else {
+        document.getElementById('student-history-list').innerHTML = '<p class="text-red font-bold p-4">Error: No student ID linked to this account.</p>';
+      }
+    } else {
+      // Admin or Teacher: Full Access
+      if (homeNavBtn) homeNavBtn.style.display = 'flex';
+      if (reportTabs) reportTabs.style.display = 'flex';
+      if (studentReportSelectorArea) studentReportSelectorArea.style.display = 'block';
+      
+      this.showScreen('home-screen');
+      this.loadHomeSetupData();
     }
   },
 
@@ -263,34 +301,42 @@ const app = {
     if (loginForm) {
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const usernameInput = document.getElementById('username-input');
         const pinInput = document.getElementById('pin-input');
         const loginError = document.getElementById('login-error');
         const submitBtn = document.getElementById('login-submit-btn');
 
         loginError.classList.add('hidden');
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Verifying PIN...';
+        submitBtn.textContent = 'Verifying Credentials...';
+
+        const usernameVal = usernameInput ? usernameInput.value.trim() : '';
+        const pinVal = pinInput.value.trim();
 
         try {
-          // If PIN matches default local testing PIN (`1234`), permit login immediately (standalone/offline/dev mode)
-          if (pinInput.value.trim() === window.CONFIG.DEFAULT_PIN) {
+          // Local offline bypass for admin/dev
+          if (usernameVal.toLowerCase() === 'admin' && pinVal === window.CONFIG.DEFAULT_PIN) {
             this.state.isAuthenticated = true;
+            this.state.user = { username: 'admin', role: 'ADMIN', linked_student_id: '' };
             localStorage.setItem('slaq_auth_logged_in', 'true');
+            localStorage.setItem('slaq_auth_user', JSON.stringify(this.state.user));
+            if (usernameInput) usernameInput.value = '';
             pinInput.value = '';
-            this.showScreen('home-screen');
-            await this.loadHomeSetupData();
+            this.applyRBACAndRoute();
             return;
           }
 
-          const response = await api.login(pinInput.value.trim());
+          const response = await api.login(usernameVal, pinVal);
           if (response && response.success) {
             this.state.isAuthenticated = true;
+            this.state.user = response.user;
             localStorage.setItem('slaq_auth_logged_in', 'true');
+            localStorage.setItem('slaq_auth_user', JSON.stringify(response.user));
+            if (usernameInput) usernameInput.value = '';
             pinInput.value = '';
-            this.showScreen('home-screen');
-            await this.loadHomeSetupData();
+            this.applyRBACAndRoute();
           } else {
-            loginError.textContent = response.message || 'Incorrect PIN. Please try again.';
+            loginError.textContent = response.message || 'Incorrect Username or PIN. Please try again.';
             loginError.classList.remove('hidden');
           }
         } catch (error) {
@@ -308,7 +354,9 @@ const app = {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         localStorage.removeItem('slaq_auth_logged_in');
+        localStorage.removeItem('slaq_auth_user');
         this.state.isAuthenticated = false;
+        this.state.user = null;
         this.showScreen('login-screen');
       });
     }
@@ -395,36 +443,98 @@ const app = {
     const tabStudentBtn = document.getElementById('tab-student-btn');
     const tabSubjectBtn = document.getElementById('tab-subject-btn');
     const tabCampusBtn = document.getElementById('tab-campus-btn');
+    const tabPrayersBtn = document.getElementById('tab-prayers-btn');
     const studentPanel = document.getElementById('student-report-panel');
     const subjectPanel = document.getElementById('subject-report-panel');
     const campusPanel = document.getElementById('campus-report-panel');
+    const prayersPanel = document.getElementById('prayers-report-panel');
 
-    if (tabStudentBtn && tabSubjectBtn && tabCampusBtn) {
+    if (tabStudentBtn && tabSubjectBtn && tabCampusBtn && tabPrayersBtn) {
       tabStudentBtn.addEventListener('click', () => {
         tabStudentBtn.classList.add('active-tab');
         tabSubjectBtn.classList.remove('active-tab');
         tabCampusBtn.classList.remove('active-tab');
+        tabPrayersBtn.classList.remove('active-tab');
         studentPanel.classList.remove('hidden');
         subjectPanel.classList.add('hidden');
         campusPanel.classList.add('hidden');
+        prayersPanel.classList.add('hidden');
       });
 
       tabSubjectBtn.addEventListener('click', () => {
         tabSubjectBtn.classList.add('active-tab');
         tabStudentBtn.classList.remove('active-tab');
         tabCampusBtn.classList.remove('active-tab');
+        tabPrayersBtn.classList.remove('active-tab');
         subjectPanel.classList.remove('hidden');
         studentPanel.classList.add('hidden');
         campusPanel.classList.add('hidden');
+        prayersPanel.classList.add('hidden');
       });
 
       tabCampusBtn.addEventListener('click', () => {
         tabCampusBtn.classList.add('active-tab');
         tabStudentBtn.classList.remove('active-tab');
         tabSubjectBtn.classList.remove('active-tab');
+        tabPrayersBtn.classList.remove('active-tab');
         campusPanel.classList.remove('hidden');
         studentPanel.classList.add('hidden');
         subjectPanel.classList.add('hidden');
+        prayersPanel.classList.add('hidden');
+      });
+
+      tabPrayersBtn.addEventListener('click', () => {
+        tabPrayersBtn.classList.add('active-tab');
+        tabStudentBtn.classList.remove('active-tab');
+        tabSubjectBtn.classList.remove('active-tab');
+        tabCampusBtn.classList.remove('active-tab');
+        prayersPanel.classList.remove('hidden');
+        studentPanel.classList.add('hidden');
+        subjectPanel.classList.add('hidden');
+        campusPanel.classList.add('hidden');
+        
+        const repPrayersDate = document.getElementById('report-prayers-date');
+        const contentPanel = document.getElementById('prayers-report-content');
+        if (repPrayersDate && contentPanel && contentPanel.classList.contains('hidden')) {
+          this.loadPrayersReportData(repPrayersDate.value);
+        }
+      });
+    }
+
+    // 9. Prayers Inner Tabs
+    const prayersDailyBtn = document.getElementById('prayers-daily-btn');
+    const prayersOverallBtn = document.getElementById('prayers-overall-btn');
+    const prayersDailyFilter = document.getElementById('prayers-daily-filter');
+    const prayersReportContent = document.getElementById('prayers-report-content');
+    const prayersOverallContent = document.getElementById('prayers-overall-content');
+
+    if (prayersDailyBtn && prayersOverallBtn) {
+      prayersDailyBtn.addEventListener('click', () => {
+        prayersDailyBtn.classList.add('active-tab');
+        prayersOverallBtn.classList.remove('active-tab');
+        prayersDailyFilter.classList.remove('hidden');
+        prayersReportContent.classList.remove('hidden');
+        prayersOverallContent.classList.add('hidden');
+      });
+
+      prayersOverallBtn.addEventListener('click', () => {
+        prayersOverallBtn.classList.add('active-tab');
+        prayersDailyBtn.classList.remove('active-tab');
+        prayersDailyFilter.classList.add('hidden');
+        prayersReportContent.classList.add('hidden');
+        prayersOverallContent.classList.remove('hidden');
+        this.loadPrayersOverallData();
+      });
+    }
+
+    // 10. Report Selectors Change
+    const repPrayersDate = document.getElementById('report-prayers-date');
+    if (repPrayersDate) {
+      // Set to today's date by default
+      const today = new Date();
+      repPrayersDate.value = today.toISOString().split('T')[0];
+      repPrayersDate.addEventListener('change', async (e) => {
+        await this.loadPrayersReportData(e.target.value);
       });
     }
 
@@ -545,9 +655,12 @@ const app = {
             if (Array.isArray(res.subjectsB1) && res.subjectsB1.length > 0) this.state.subjectsCache['B1'] = res.subjectsB1;
             if (Array.isArray(res.subjectsB2) && res.subjectsB2.length > 0) this.state.subjectsCache['B2'] = res.subjectsB2;
             if (Array.isArray(res.subjectsCampus) && res.subjectsCampus.length > 0) this.state.subjectsCache['CAMPUS'] = res.subjectsCampus;
+            if (Array.isArray(res.subjectsPrayers) && res.subjectsPrayers.length > 0) this.state.subjectsCache['PRAYERS'] = res.subjectsPrayers;
+            
             if (Array.isArray(res.studentsB1) && res.studentsB1.length > 0) this.state.studentsCache['B1'] = res.studentsB1;
             if (Array.isArray(res.studentsB2) && res.studentsB2.length > 0) this.state.studentsCache['B2'] = res.studentsB2;
             if (Array.isArray(res.studentsCampus) && res.studentsCampus.length > 0) this.state.studentsCache['CAMPUS'] = res.studentsCampus;
+            if (Array.isArray(res.studentsPrayers) && res.studentsPrayers.length > 0) this.state.studentsCache['PRAYERS'] = res.studentsPrayers;
 
             localStorage.setItem('slaq_subjects_cache', JSON.stringify(this.state.subjectsCache));
             localStorage.setItem('slaq_students_cache', JSON.stringify(this.state.studentsCache));
@@ -672,6 +785,13 @@ const app = {
   async startMarkingSession() {
     this.showScreen('marking-screen');
     this.state.isDirty = false;
+
+    const markingScreen = document.getElementById('marking-screen');
+    if (this.state.batchId === 'PRAYERS') {
+      markingScreen.classList.add('prayers-mode');
+    } else {
+      markingScreen.classList.remove('prayers-mode');
+    }
 
     const metaLabel = document.getElementById('marking-batch-subject-label');
     const dateLabel = document.getElementById('marking-date-label');
@@ -811,11 +931,12 @@ const app = {
     const tbody = table.querySelector('#attendance-tbody');
 
     const isCampus = String(this.state.batchId).trim().toUpperCase() === 'CAMPUS';
+    const isPrayers = String(this.state.batchId).trim().toUpperCase() === 'PRAYERS';
     let currentBatchGroup = null;
 
     // Sort students by batch_id then roll_no so headers don't repeat
     const sortedStudents = [...this.state.students].sort((a, b) => {
-      if (isCampus) {
+      if (isCampus || isPrayers) {
         const batchDiff = String(a.batch_id || '').localeCompare(String(b.batch_id || ''));
         if (batchDiff !== 0) return batchDiff;
       }
@@ -824,10 +945,10 @@ const app = {
 
     sortedStudents.forEach(student => {
       const sid = String(student.student_id).trim();
-      const currentStatus = this.state.attendanceMap[sid] || 'Present';
+      const currentStatus = this.state.attendanceMap[sid] || (isPrayers ? 'Present' : 'Present');
 
-      // Insert Batch Separation Header if CAMPUS
-      if (isCampus && student.batch_id !== currentBatchGroup) {
+      // Insert Batch Separation Header if CAMPUS or PRAYERS
+      if ((isCampus || isPrayers) && student.batch_id !== currentBatchGroup) {
         currentBatchGroup = student.batch_id;
         const headerRow = document.createElement('tr');
         headerRow.className = 'batch-separator-row';
@@ -839,48 +960,78 @@ const app = {
       row.className = `student-tr status-${currentStatus.toLowerCase()}`;
       row.id = `row-${sid}`;
 
-      const lateBtn = isCampus ? '' : `
-            <button type="button" class="status-pill late ${currentStatus === 'Late' ? 'active' : ''}" 
-                    data-student="${sid}" data-status="Late" title="Mark Late">
-              <span class="status-full">⏰ Late</span><span class="status-mobile">Lt</span>
-            </button>`;
-      
-      const leaveBtn = isCampus ? '' : `
-            <button type="button" class="status-pill leave ${currentStatus === 'Leave' ? 'active' : ''}" 
-                    data-student="${sid}" data-status="Leave" title="Mark Leave">
-              <span class="status-full">🟡 Leave</span><span class="status-mobile">L</span>
-            </button>`;
+      if (isPrayers) {
+        row.innerHTML = `
+          <td class="col-roll">
+            <span class="roll-badge">${student.roll_no}</span>
+          </td>
+          <td class="col-name">
+            <span class="name-text">${student.name}</span>
+          </td>
+          <td class="col-status">
+            <div class="status-selector-table prayers-mode">
+              <button type="button" class="status-pill prayer-btn ${currentStatus === 'Present' ? 'present' : 'absent'} active" 
+                      data-student="${sid}" data-status="${currentStatus === 'Present' ? 'Present' : 'Absent'}" title="Toggle Status">
+                ${currentStatus === 'Present' ? 'P' : 'A'}
+              </button>
+              <button type="button" class="status-pill leave ${currentStatus === 'Leave' ? 'active' : ''}" 
+                      data-student="${sid}" data-status="Leave" title="Mark Leave">
+                <span class="status-full">🟡 Leave</span><span class="status-mobile">L</span>
+              </button>
+            </div>
+          </td>
+        `;
+      } else {
+        const lateBtn = isCampus ? '' : `
+              <button type="button" class="status-pill late ${currentStatus === 'Late' ? 'active' : ''}" 
+                      data-student="${sid}" data-status="Late" title="Mark Late">
+                <span class="status-full">⏰ Late</span><span class="status-mobile">Lt</span>
+              </button>`;
+        
+        const leaveBtn = isCampus ? '' : `
+              <button type="button" class="status-pill leave ${currentStatus === 'Leave' ? 'active' : ''}" 
+                      data-student="${sid}" data-status="Leave" title="Mark Leave">
+                <span class="status-full">🟡 Leave</span><span class="status-mobile">L</span>
+              </button>`;
 
-      row.innerHTML = `
-        <td class="col-roll">
-          <span class="roll-badge">${student.roll_no}</span>
-        </td>
-        <td class="col-name">
-          <span class="name-text">${student.name}</span>
-        </td>
-        <td class="col-status">
-          <div class="status-selector-table ${isCampus ? 'campus-mode' : ''}">
-            <button type="button" class="status-pill present ${currentStatus === 'Present' ? 'active' : ''}" 
-                    data-student="${sid}" data-status="Present" title="Mark Present">
-              <span class="status-full">🟢 Present</span><span class="status-mobile">P</span>
-            </button>
-            ${lateBtn}
-            <button type="button" class="status-pill absent ${currentStatus === 'Absent' ? 'active' : ''}" 
-                    data-student="${sid}" data-status="Absent" title="Mark Absent">
-              <span class="status-full">🔴 Absent</span><span class="status-mobile">A</span>
-            </button>
-            ${leaveBtn}
-          </div>
-        </td>
-      `;
+        row.innerHTML = `
+          <td class="col-roll">
+            <span class="roll-badge">${student.roll_no}</span>
+          </td>
+          <td class="col-name">
+            <span class="name-text">${student.name}</span>
+          </td>
+          <td class="col-status">
+            <div class="status-selector-table ${isCampus ? 'campus-mode' : ''}">
+              <button type="button" class="status-pill present ${currentStatus === 'Present' ? 'active' : ''}" 
+                      data-student="${sid}" data-status="Present" title="Mark Present">
+                <span class="status-full">🟢 Present</span><span class="status-mobile">P</span>
+              </button>
+              ${lateBtn}
+              <button type="button" class="status-pill absent ${currentStatus === 'Absent' ? 'active' : ''}" 
+                      data-student="${sid}" data-status="Absent" title="Mark Absent">
+                <span class="status-full">🔴 Absent</span><span class="status-mobile">A</span>
+              </button>
+              ${leaveBtn}
+            </div>
+          </td>
+        `;
+      }
 
       // Add click listeners to status pills
       row.querySelectorAll('.status-pill').forEach(btn => {
         btn.addEventListener('click', (e) => {
           this.state.isDirty = true;
           const targetSid = btn.getAttribute('data-student');
-          const targetStatus = btn.getAttribute('data-status');
-          this.setStudentStatus(targetSid, targetStatus);
+          
+          if (btn.classList.contains('prayer-btn')) {
+             const current = btn.getAttribute('data-status');
+             const newTargetStatus = current === 'Present' ? 'Absent' : 'Present';
+             this.setStudentStatus(targetSid, newTargetStatus);
+          } else {
+             const targetStatus = btn.getAttribute('data-status');
+             this.setStudentStatus(targetSid, targetStatus);
+          }
         });
       });
 
@@ -900,6 +1051,28 @@ const app = {
     const row = document.getElementById(`row-${studentId}`);
     if (row) {
       row.className = `student-tr status-${newStatus.toLowerCase()}`;
+      
+      const isPrayers = String(this.state.batchId).trim().toUpperCase() === 'PRAYERS';
+      if (isPrayers) {
+        const prayerBtn = row.querySelector('.prayer-btn');
+        if (prayerBtn) {
+          if (newStatus === 'Present') {
+            prayerBtn.className = 'status-pill prayer-btn present active';
+            prayerBtn.setAttribute('data-status', 'Present');
+            prayerBtn.textContent = 'P';
+          } else if (newStatus === 'Absent') {
+            prayerBtn.className = 'status-pill prayer-btn absent active';
+            prayerBtn.setAttribute('data-status', 'Absent');
+            prayerBtn.textContent = 'A';
+          } else {
+            // Leave mode - unhighlight prayer btn but keep it as Present by default 
+            prayerBtn.className = 'status-pill prayer-btn present';
+            prayerBtn.setAttribute('data-status', 'Present');
+            prayerBtn.textContent = 'P';
+          }
+        }
+      }
+
       row.querySelectorAll('.status-pill').forEach(btn => {
         if (btn.getAttribute('data-status') === newStatus) {
           btn.classList.add('active');
@@ -1265,6 +1438,54 @@ const app = {
 
       renderCalendar(currentDate);
       renderLogsForSelectedDate();
+
+      // BUILD SUBJECT BREAKDOWN TABLE
+      const subjectStats = {};
+      records.forEach(r => {
+        if (String(r.batch_id).trim() === 'CAMPUS') return;
+        const sid = r.subject_id;
+        if (!subjectStats[sid]) {
+          subjectStats[sid] = { present: 0, late: 0, absent: 0, leave: 0, total: 0 };
+        }
+        const st = String(r.status).toLowerCase();
+        if (st === 'present') subjectStats[sid].present++;
+        else if (st === 'late') subjectStats[sid].late++;
+        else if (st === 'absent') subjectStats[sid].absent++;
+        else if (st === 'leave') subjectStats[sid].leave++;
+        
+        subjectStats[sid].total++;
+      });
+      
+      const breakdownTbody = document.getElementById('student-subject-breakdown-tbody');
+      if (breakdownTbody) {
+        breakdownTbody.innerHTML = '';
+        const subjectKeys = Object.keys(subjectStats);
+        if (subjectKeys.length === 0) {
+          breakdownTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No subject attendance data available.</td></tr>';
+        } else {
+          subjectKeys.forEach(sid => {
+            const stats = subjectStats[sid];
+            const p = stats.present;
+            const l = stats.late;
+            const a = stats.absent;
+            const lv = stats.leave;
+            const denom = p + l + a + lv;
+            const rate = denom > 0 ? ((p + l) / denom * 100).toFixed(1) : 0;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td style="font-weight: 600;">${getSubjectName(sid)}</td>
+              <td class="text-green">${p}</td>
+              <td class="text-purple">${l}</td>
+              <td class="text-red">${a}</td>
+              <td class="text-amber">${lv}</td>
+              <td><span class="highlight-blue" style="padding: 4px 10px; font-size: 0.9rem;">${rate}%</span></td>
+            `;
+            breakdownTbody.appendChild(tr);
+          });
+        }
+      }
+
 
     } catch (error) {
       console.error('[Student Report Error]', error);
@@ -1793,6 +2014,138 @@ const app = {
         saveBtn.disabled = false;
         saveBtn.textContent = '💾 Save Changes';
       }
+    }
+  },
+
+  /**
+   * Load and render Prayers Report Data for a specific date
+   */
+  async loadPrayersReportData(dateStr) {
+    const contentPanel = document.getElementById('prayers-report-content');
+    const tbody = document.getElementById('prayers-students-tbody');
+
+    contentPanel.classList.remove('hidden');
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner"></div><p>Fetching prayers data...</p></td></tr>';
+
+    try {
+      const resp = await api.getPrayersReport(dateStr);
+      if (!resp || !resp.success) {
+        throw new Error(resp?.message || 'Could not fetch prayers report.');
+      }
+
+      const { summary, students } = resp;
+
+      tbody.innerHTML = '';
+      if (!Array.isArray(students) || students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No active students or no attendance tracked yet.</td></tr>';
+        return;
+      }
+
+      const prayersCache = this.state.subjectsCache['PRAYERS'] || [];
+      const getPrayerId = (name) => {
+         const found = prayersCache.find(s => String(s.subject_name).toLowerCase().includes(name.toLowerCase()));
+         return found ? String(found.subject_id).trim() : name; // fallback
+      };
+      
+      const prayerIds = [
+         getPrayerId('Fajr'),
+         getPrayerId('Dhuhr'),
+         getPrayerId('Asr'),
+         getPrayerId('Maghrib'),
+         getPrayerId('Isha')
+      ];
+
+      students.forEach(student => {
+        const tr = document.createElement('tr');
+        let cellsHTML = '';
+        
+        prayerIds.forEach(pid => {
+          const st = (student.attendance && student.attendance[pid]) ? String(student.attendance[pid]).toLowerCase() : '-';
+          if (st === 'present') {
+            cellsHTML += `<td class="rep-col-stat text-center"><span class="pill present">P</span></td>`;
+          } else if (st === 'absent') {
+            cellsHTML += `<td class="rep-col-stat text-center"><span class="pill absent">A</span></td>`;
+          } else if (st === 'leave') {
+            cellsHTML += `<td class="rep-col-stat text-center"><span class="pill leave">L</span></td>`;
+          } else {
+            cellsHTML += `<td class="rep-col-stat text-center text-muted">-</td>`;
+          }
+        });
+
+        tr.innerHTML = `
+          <td class="rep-col-roll">${student.roll_no}</td>
+          <td class="rep-col-name" style="font-weight:600;">${student.name}</td>
+          ${cellsHTML}
+        `;
+        tbody.appendChild(tr);
+      });
+
+    } catch (error) {
+      console.error('[Prayers Report Error]', error);
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-red py-3 font-bold">Error loading report: ${error.message}</td></tr>`;
+    }
+  },
+
+  /**
+   * Load and render Prayers Overall Report (Total Missed)
+   */
+  async loadPrayersOverallData() {
+    const tbody = document.getElementById('prayers-overall-tbody');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner"></div><p>Fetching overall report...</p></td></tr>';
+
+    try {
+      const resp = await api.getPrayersOverallReport();
+      if (!resp || !resp.success) {
+        throw new Error(resp?.message || 'Could not fetch overall report.');
+      }
+
+      const { students } = resp;
+
+      tbody.innerHTML = '';
+      if (!Array.isArray(students) || students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No active students or no attendance tracked yet.</td></tr>';
+        return;
+      }
+
+      const prayersCache = this.state.subjectsCache['PRAYERS'] || [];
+      const getPrayerId = (name) => {
+         const found = prayersCache.find(s => String(s.subject_name).toLowerCase().includes(name.toLowerCase()));
+         return found ? String(found.subject_id).trim() : name; // fallback
+      };
+      
+      const prayerIds = [
+         getPrayerId('Fajr'),
+         getPrayerId('Dhuhr'),
+         getPrayerId('Asr'),
+         getPrayerId('Maghrib'),
+         getPrayerId('Isha')
+      ];
+
+      students.forEach(student => {
+        const tr = document.createElement('tr');
+        let cellsHTML = '';
+        
+        prayerIds.forEach(pid => {
+          const missed = student.missed_counts[pid] || 0;
+          if (missed > 0) {
+            cellsHTML += `<td class="rep-col-stat text-center font-bold text-red" style="color: #dc2626;">${missed}</td>`;
+          } else {
+            cellsHTML += `<td class="rep-col-stat text-center text-muted">-</td>`;
+          }
+        });
+
+        tr.innerHTML = `
+          <td class="rep-col-roll">${student.roll_no}</td>
+          <td class="rep-col-name" style="font-weight:600;">${student.name}</td>
+          ${cellsHTML}
+          <td class="text-center font-bold" style="color: #dc2626; font-size: 1.05rem;">${student.total_missed}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+    } catch (error) {
+      console.error('[Prayers Overall Report Error]', error);
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red py-3 font-bold">Error loading report: ${error.message}</td></tr>`;
     }
   },
 

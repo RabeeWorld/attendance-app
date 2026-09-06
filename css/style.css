@@ -59,6 +59,13 @@
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* FIX for PIN placeholder spacing */
+.pin-input::placeholder {
+  letter-spacing: normal !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.9rem !important;
+}
+
 /* Reset & Base Typography */
 * {
   box-sizing: border-box;
@@ -859,6 +866,10 @@ h1, h2, h3, h4 {
   color: var(--text-primary);
   letter-spacing: -0.01em;
 }
+.pill.present { color: #059669; }
+.pill.absent { color: #dc2626; }
+.pill.leave { color: #d97706; }
+.pill.late { color: #7c3aed; }
 .quick-mark-actions {
   display: flex;
   justify-content: space-between;
@@ -1735,6 +1746,201 @@ h1, h2, h3, h4 {
     gap: 8px;
     width: 100%;
   }
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .marking-actions .btn {
+    font-size: 0.82rem;
+    padding: 6px 12px;
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  /* Minimal Attendance Table adjustments to eliminate vertical button wrapping */
+  .table-responsive-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px;
+  }
+  .minimal-attendance-table {
+    width: 100%;
+  }
+  .minimal-attendance-table th,
+  .minimal-attendance-table td {
+    padding: 10px 6px;
+  }
+  .minimal-attendance-table th.col-roll,
+  .minimal-attendance-table td.col-roll {
+    width: 44px;
+    text-align: center;
+  }
+  .minimal-attendance-table th.col-name,
+  .minimal-attendance-table td.col-name {
+    min-width: 110px;
+    font-size: 0.92rem;
+  }
+  .minimal-attendance-table th.col-status,
+  .minimal-attendance-table td.col-status {
+    min-width: 140px;
+    text-align: right;
+  }
+  .roll-badge {
+    padding: 3px 6px;
+    font-size: 0.78rem;
+  }
+  .name-text {
+    font-size: 0.92rem;
+  }
+  .status-selector-table {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .status-full {
+    display: none !important;
+  }
+  .status-mobile {
+    display: inline-block !important;
+  }
+  .status-pill {
+    width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    flex: 0 0 36px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+  }
+  .status-pill.present { color: #059669; border-color: #a7f3d0; background: #f0fdf4; }
+  .status-pill.absent { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+  .status-pill.leave { color: #d97706; border-color: #fde68a; background: #fffbeb; }
+  .status-pill.late { color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff; }
+
+  .status-pill.active.present {
+    background-color: #10b981 !important;
+    border-color: #059669 !important;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(16, 185, 129, 0.4) !important;
+    transform: scale(1.08);
+  }
+  .status-pill.active.absent {
+    background-color: #ef4444 !important;
+    border-color: #b91c1c !important;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.4) !important;
+    transform: scale(1.08);
+  }
+  .status-pill.active.leave {
+    background-color: #f59e0b !important;
+    border-color: #b45309 !important;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.4) !important;
+    transform: scale(1.08);
+  }
+  .status-pill.active.late {
+    background-color: #8b5cf6 !important;
+    border-color: #6d28d9 !important;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(139, 92, 246, 0.4) !important;
+    transform: scale(1.08);
+  }
+
+  /* Submit Footer Mobile Fit */
+  .submit-footer {
+    padding: 12px 14px;
+  }
+  .submit-footer .btn {
+    font-size: 0.95rem;
+    min-height: 46px;
+    padding: 12px;
+    width: 100%;
+  }
+
+  /* Reports Screen & Subject Breakdown Table Mobile Fit */
+  .header-full {
+    display: none !important;
+  }
+  .header-mobile {
+    display: inline !important;
+  }
+  .history-list-card {
+    padding: 16px 10px !important;
+  }
+  .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    display: block !important;
+  }
+  .report-table.subject-breakdown-table th,
+  .report-table.subject-breakdown-table td {
+    padding: 8px 4px !important;
+    font-size: 0.82rem !important;
+  }
+  .report-table.subject-breakdown-table th.rep-col-roll,
+  .report-table.subject-breakdown-table td.rep-col-roll {
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 40px !important;
+    padding: 8px 4px !important;
+    text-align: left !important;
+  }
+  .report-table.subject-breakdown-table th.rep-col-name,
+  .report-table.subject-breakdown-table td.rep-col-name {
+    min-width: 85px !important;
+    padding: 8px 6px 8px 12px !important;
+    word-break: break-word;
+  }
+  .report-table.subject-breakdown-table th.rep-col-stat,
+  .report-table.subject-breakdown-table td.rep-col-stat {
+    width: 24px !important;
+    min-width: 24px !important;
+    padding: 8px 1px !important;
+    text-align: center !important;
+  }
+  .report-table.subject-breakdown-table th.rep-col-rate,
+  .report-table.subject-breakdown-table td.rep-col-rate {
+    width: 88px !important;
+    min-width: 88px !important;
+    padding: 8px 2px !important;
+    text-align: center !important;
+  }
+  .report-table.subject-breakdown-table .pill {
+    padding: 3px 6px !important;
+    font-size: 0.76rem !important;
+  }
+
+  .report-tabs {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .report-view-toggle {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .date-picker-group {
+    max-width: 100% !important;
+  }
+  .daily-table-header-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .daily-table-header-row .daily-actions {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
   .daily-table-header-row .daily-actions .btn {
     width: 100%;
   }
@@ -1744,4 +1950,34 @@ h1, h2, h3, h4 {
 #subject-overall-panel.campus-mode #subject-report-stats-grid,
 #subject-overall-panel.campus-mode .hide-on-campus {
   display: none !important;
+}
+
+/* ============================================================================
+ * DAILY PRAYERS SPECIFIC UI
+ * ============================================================================ */
+
+/* Hide late stat in prayers mode */
+#marking-screen.prayers-mode .count-late {
+  display: none !important;
+}
+
+/* Specific button layout for prayers row */
+.status-selector-table.prayers-mode {
+  justify-content: flex-start;
+  gap: 16px;
+}
+
+/* Prayers Report Matrix */
+.prayers-matrix-table th.rep-col-stat,
+.prayers-matrix-table td.rep-col-stat {
+  width: 14%;
+  min-width: 60px;
+}
+@media (max-width: 768px) {
+  .prayers-matrix-table th.rep-col-stat,
+  .prayers-matrix-table td.rep-col-stat {
+    font-size: 0.75rem !important;
+    padding: 8px 4px !important;
+    min-width: 45px;
+  }
 }

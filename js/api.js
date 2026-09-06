@@ -121,10 +121,10 @@ const api = {
    * ============================================================================ */
 
   /**
-   * 1. Validate PIN login against server
+   * 1. Validate Username/PIN login against server
    */
-  async login(pin) {
-    return this._get('login', { pin });
+  async login(username, pin) {
+    return this._get('login', { username, pin });
   },
 
   /**
@@ -163,6 +163,18 @@ const api = {
    * 3. Fetch active students in a batch sorted by roll_no (with offline cache fallback)
    */
   async getStudents(batchId) {
+    // LOCAL DEV MOCK: If PRAYERS and backend not updated yet, pull from local cache
+    if (batchId === 'PRAYERS') {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_students_cache') || '{}');
+        if (cached && cached['PRAYERS'] && cached['PRAYERS'].length > 0) {
+          return { success: true, batch_id: batchId, students: cached['PRAYERS'], fromCache: true, isMock: true };
+        } else if (cached && cached['CAMPUS'] && cached['CAMPUS'].length > 0) {
+          return { success: true, batch_id: batchId, students: cached['CAMPUS'], fromCache: true, isMock: true };
+        }
+      } catch (e) {}
+    }
+
     if (!navigator.onLine) {
       try {
         const cached = JSON.parse(localStorage.getItem('slaq_students_cache') || '{}');
@@ -292,5 +304,183 @@ const api = {
       } catch (e) {}
       throw error;
     }
+  },
+
+  /**
+   * 9. Fetch prayers report for a specific date (with offline cache fallback)
+   */
+  async getPrayersReport(date) {
+    if (!navigator.onLine) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_prayers_reports_cache') || '{}');
+        if (cached && cached[date]) {
+          return { success: true, ...cached[date], fromCache: true };
+        }
+      } catch (e) {}
+    }
+    try {
+      const data = await this._get('getPrayersReport', { date: date });
+      if (data && data.success) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('slaq_prayers_reports_cache') || '{}');
+          cached[date] = data;
+          localStorage.setItem('slaq_prayers_reports_cache', JSON.stringify(cached));
+        } catch (e) {}
+        return data;
+      } else {
+        // Trigger the fallback mock generator if the live server doesn't support this yet
+        throw new Error(data.error || "Server failed");
+      }
+    } catch (error) {
+      console.warn("Server failed to generate prayers report, generating local mock for dev mode.");
+      try {
+        const cachedStudents = JSON.parse(localStorage.getItem('slaq_students_cache') || '{}');
+        const studentsList = cachedStudents['PRAYERS'] || cachedStudents['CAMPUS'] || [];
+        
+        const statsByStudent = {};
+        studentsList.forEach(s => {
+          statsByStudent[s.student_id] = {
+            student_id: s.student_id,
+            name: s.name,
+            roll_no: s.roll_no,
+            batch_id: s.batch_id,
+            attendance: {}
+          };
+        });
+
+        let totalPrayersMarked = 0;
+        let totalPrayersAttended = 0;
+
+        const prefix = `slaq_att_${date}_PRAYERS_`;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(prefix)) {
+            const subId = key.replace(prefix, '');
+            const snapshot = JSON.parse(localStorage.getItem(key) || 'null');
+            if (snapshot) {
+              Object.keys(snapshot).forEach(sid => {
+                if (statsByStudent[sid]) {
+                  const status = snapshot[sid];
+                  statsByStudent[sid].attendance[subId] = status;
+                  totalPrayersMarked++;
+                  if (status === 'Present') totalPrayersAttended++;
+                }
+              });
+            }
+          }
+        }
+
+        const studentStatsArray = Object.values(statsByStudent);
+        studentStatsArray.sort((a, b) => {
+          if (a.batch_id < b.batch_id) return -1;
+          if (a.batch_id > b.batch_id) return 1;
+          return Number(a.roll_no) - Number(b.roll_no);
+        });
+
+        const data = {
+          success: true,
+          date: date,
+          students: studentStatsArray,
+          summary: {
+            total_students: studentStatsArray.length,
+            total_prayers_marked: totalPrayersMarked,
+            total_prayers_attended: totalPrayersAttended
+          },
+          isMock: true
+        };
+        const cachedReps = JSON.parse(localStorage.getItem('slaq_prayers_reports_cache') || '{}');
+        cachedReps[date] = data;
+        localStorage.setItem('slaq_prayers_reports_cache', JSON.stringify(cachedReps));
+        return data;
+      } catch (e) {
+        console.error("Local mock failed", e);
+      }
+      try {
+        const cached = JSON.parse(localStorage.getItem('slaq_prayers_reports_cache') || '{}');
+        if (cached && cached[date]) {
+          return { success: true, ...cached[date], fromCache: true };
+        }
+      } catch (e) {}
+      throw error;
+    }
+  },
+
+  /**
+   * 10. Fetch prayers overall defaulters report
+   * Tries server first. If offline/error, falls back to local scan.
+   */
+  async getPrayersOverallReport() {
+    if (navigator.onLine) {
+      try {
+        const data = await this._get('getPrayersOverallReport', {});
+        if (data && data.success) {
+          return data;
+        }
+      } catch (error) {
+        console.warn("Server failed to generate overall report, generating local mock for dev mode.");
+      }
+    }
+
+    // Offline / Fallback local scan
+    return new Promise((resolve) => {
+      try {
+        const cachedStudents = JSON.parse(localStorage.getItem('slaq_students_cache') || '{}');
+        const studentsList = cachedStudents['PRAYERS'] || cachedStudents['CAMPUS'] || [];
+        
+        const statsByStudent = {};
+        studentsList.forEach(s => {
+          statsByStudent[s.student_id] = {
+            student_id: s.student_id,
+            name: s.name,
+            roll_no: s.roll_no,
+            missed_counts: {},
+            total_missed: 0
+          };
+        });
+
+        // Scan localStorage for all attendance keys related to PRAYERS
+        const prefixMatch = /^slaq_att_(.*?)_PRAYERS_/;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && prefixMatch.test(key)) {
+            const match = prefixMatch.exec(key);
+            const dateStr = match[1];
+            const subId = key.replace(`slaq_att_${dateStr}_PRAYERS_`, '');
+            
+            const snapshot = JSON.parse(localStorage.getItem(key) || 'null');
+            if (snapshot) {
+              Object.keys(snapshot).forEach(sid => {
+                if (statsByStudent[sid]) {
+                  const status = snapshot[sid];
+                  if (status === 'Absent') {
+                    if (!statsByStudent[sid].missed_counts[subId]) {
+                      statsByStudent[sid].missed_counts[subId] = 0;
+                    }
+                    statsByStudent[sid].missed_counts[subId]++;
+                    statsByStudent[sid].total_missed++;
+                  }
+                }
+              });
+            }
+          }
+        }
+
+        const studentStatsArray = Object.values(statsByStudent);
+        // Sort by total_missed descending
+        studentStatsArray.sort((a, b) => b.total_missed - a.total_missed);
+
+        resolve({
+          success: true,
+          students: studentStatsArray,
+          summary: {
+            total_students: studentStatsArray.length
+          },
+          isMock: true
+        });
+      } catch (e) {
+        console.error("Local mock for overall report failed", e);
+        resolve({ success: false, error: e.message });
+      }
+    });
   }
 };
