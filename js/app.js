@@ -120,6 +120,9 @@ const app = {
     const homeNavBtn = document.getElementById('nav-home');
     const reportTabs = document.querySelector('.report-tabs');
     const studentReportSelectorArea = document.querySelector('#student-report-panel .filter-bar');
+    const workspaceSubtitle = document.getElementById('workspace-subtitle');
+    const reportBackBtn = document.getElementById('report-back-btn');
+    const welcomeCard = document.getElementById('student-welcome-card');
     
     if (role === 'STUDENT') {
       // Hide marking screen nav
@@ -127,6 +130,33 @@ const app = {
       // Hide report tabs and selector
       if (reportTabs) reportTabs.style.display = 'none';
       if (studentReportSelectorArea) studentReportSelectorArea.style.display = 'none';
+      if (workspaceSubtitle) workspaceSubtitle.classList.add('hidden');
+      if (reportBackBtn) reportBackBtn.classList.add('hidden');
+      
+      // Populate and show welcome card
+      if (welcomeCard) {
+        const d = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        const dateStr = d.toLocaleDateString('en-US', options);
+        
+        let displayName = user.name;
+        if (!displayName && user.linked_student_id) {
+          const allStudents = [...(this.state.studentsCache['B1']||[]), ...(this.state.studentsCache['B2']||[]), ...(this.state.studentsCache['CAMPUS']||[])];
+          const found = allStudents.find(s => String(s.student_id).trim() === user.linked_student_id);
+          if (found) displayName = found.name;
+        }
+        const titleText = displayName ? `Welcome back, ${displayName}!` : `Welcome back!`;
+        
+        welcomeCard.innerHTML = `
+          <div class="welcome-content">
+            <span class="welcome-date">${dateStr}</span>
+            <h2 class="welcome-title">${titleText}</h2>
+            <p class="welcome-subtitle">Always stay updated in your student portal</p>
+          </div>
+          <div class="welcome-icon">🎓</div>
+        `;
+        welcomeCard.classList.remove('hidden');
+      }
       
       this.showScreen('reports-screen');
       
@@ -141,6 +171,9 @@ const app = {
       if (homeNavBtn) homeNavBtn.style.display = 'flex';
       if (reportTabs) reportTabs.style.display = 'flex';
       if (studentReportSelectorArea) studentReportSelectorArea.style.display = 'block';
+      if (workspaceSubtitle) workspaceSubtitle.classList.remove('hidden');
+      if (reportBackBtn) reportBackBtn.classList.remove('hidden');
+      if (welcomeCard) welcomeCard.classList.add('hidden');
       
       this.showScreen('home-screen');
       this.loadHomeSetupData();
@@ -357,6 +390,8 @@ const app = {
         localStorage.removeItem('slaq_auth_user');
         this.state.isAuthenticated = false;
         this.state.user = null;
+        const workspaceSubtitle = document.getElementById('workspace-subtitle');
+        if (workspaceSubtitle) workspaceSubtitle.classList.add('hidden');
         this.showScreen('login-screen');
       });
     }
@@ -1306,7 +1341,19 @@ const app = {
         throw new Error(resp?.message || 'Could not fetch student report.');
       }
 
-      const { summary, records } = resp;
+      const { summary, records, student } = resp;
+
+      const role = (this.state.user?.role || '').toUpperCase();
+      if (role === 'STUDENT' && student && student.name) {
+        if (!this.state.user.name) {
+          this.state.user.name = student.name;
+          localStorage.setItem('slaq_auth_user', JSON.stringify(this.state.user));
+        }
+        const welcomeTitle = document.querySelector('#student-welcome-card .welcome-title');
+        if (welcomeTitle) {
+          welcomeTitle.textContent = `Welcome back, ${student.name}!`;
+        }
+      }
 
       document.getElementById('rep-student-percentage').textContent = `${summary.percentage}%`;
       document.getElementById('rep-student-present').textContent = summary.present;

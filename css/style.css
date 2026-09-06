@@ -1981,3 +1981,85 @@ h1, h2, h3, h4 {
     min-width: 45px;
   }
 }
+
+/* ============================================================================
+ * STUDENT DASHBOARD SPECIFIC UI
+ * ============================================================================ */
+
+.student-welcome-card {
+  background: var(--bg-card);
+  border: 1.5px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 24px;
+  color: var(--text-primary);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.welcome-content {
+  position: relative;
+  z-index: 2;
+  text-align: left;
+}
+
+.welcome-date {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 6px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.welcome-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-primary);
+}
+
+.welcome-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin: 0;
+  font-weight: 500;
+}
+
+.welcome-icon {
+  font-size: 4rem;
+  z-index: 2;
+  margin-left: 20px;
+  filter: drop-shadow(0 8px 16px rgba(16, 185, 129, 0.15));
+}
+
+/* Decorative background circles */
+.student-welcome-card::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -20px;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, var(--present-green-bg) 0%, rgba(209, 250, 229, 0) 70%);
+  border-radius: 50%;
+  z-index: 1;
+}
+.student-welcome-card::after {
+  content: '';
+  position: absolute;
+  bottom: -30px;
+  left: 20px;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(241, 245, 249, 0.8) 0%, rgba(241, 245, 249, 0) 70%);
+  border-radius: 50%;
+  z-index: 1;
+}
