@@ -1675,8 +1675,26 @@ const app = {
         return Number(a.roll_no) - Number(b.roll_no);
       });
 
-      students.forEach(s => {
+      let lastRollIndex = -1;
+      for (let i = 0; i < students.length; i++) {
+        if (students[i].roll_no && String(students[i].roll_no).trim() !== '') {
+          lastRollIndex = i;
+        } else {
+          break;
+        }
+      }
+
+      students.forEach((s, index) => {
+        let rowClass = '';
+        if (index < 3 && lastRollIndex >= index) {
+          rowClass = 'top-rank-row';
+        } else if (lastRollIndex >= 3 && index > lastRollIndex - 3 && index <= lastRollIndex) {
+          rowClass = 'bottom-rank-row';
+        }
+
         const tr = document.createElement('tr');
+        if (rowClass) tr.className = rowClass;
+        
         tr.innerHTML = `
           <td class="rep-col-roll text-center"><strong>${s.roll_no}</strong></td>
           <td class="rep-col-name">${s.name}</td>

@@ -2038,3 +2038,11 @@ h1, h2, h3, h4 {
   border-radius: 50%;
   z-index: 1;
 }
+
+/* Campus Report Ranking Styles */
+tr.top-rank-row td {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+tr.bottom-rank-row td {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
