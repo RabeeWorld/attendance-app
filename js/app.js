@@ -1650,10 +1650,18 @@ const app = {
       }
 
       students.sort((a, b) => {
-        const batchA = a.batch_id || '';
-        const batchB = b.batch_id || '';
-        if (batchA < batchB) return -1;
-        if (batchA > batchB) return 1;
+        const hasRollA = (a.roll_no && String(a.roll_no).trim() !== '') ? 1 : 0;
+        const hasRollB = (b.roll_no && String(b.roll_no).trim() !== '') ? 1 : 0;
+
+        // 1. Always put those without roll numbers at the bottom
+        if (hasRollA !== hasRollB) return hasRollB - hasRollA;
+
+        // 2. Sort by Present count (Descending)
+        const presentA = Number(a.present) || 0;
+        const presentB = Number(b.present) || 0;
+        if (presentA !== presentB) return presentB - presentA;
+
+        // 3. Fallback: Sort by Roll Number (Ascending)
         return Number(a.roll_no) - Number(b.roll_no);
       });
 
