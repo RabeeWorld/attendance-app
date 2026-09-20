@@ -1489,7 +1489,7 @@ const app = {
       // BUILD SUBJECT BREAKDOWN TABLE
       const subjectStats = {};
       records.forEach(r => {
-        if (String(r.batch_id).trim() === 'CAMPUS') return;
+        if (String(r.batch_id).trim() === 'CAMPUS' || String(r.batch_id).trim() === 'PRAYERS') return;
         const sid = r.subject_id;
         if (!subjectStats[sid]) {
           subjectStats[sid] = { present: 0, late: 0, absent: 0, leave: 0, total: 0 };
