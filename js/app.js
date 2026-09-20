@@ -1571,7 +1571,12 @@ const app = {
         return;
       }
 
-      students.forEach(s => {
+      // Move students without roll numbers to the bottom, preserving existing order
+      const withRoll = students.filter(s => s.roll_no && String(s.roll_no).trim() !== '');
+      const withoutRoll = students.filter(s => !s.roll_no || String(s.roll_no).trim() === '');
+      const rearrangedStudents = [...withRoll, ...withoutRoll];
+
+      rearrangedStudents.forEach(s => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td class="rep-col-roll text-center"><strong>${s.roll_no}</strong></td>
