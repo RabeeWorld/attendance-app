@@ -1219,8 +1219,9 @@ const app = {
     const cachedSubjectsB1 = this.state.subjectsCache['B1'] || [];
     const cachedSubjectsB2 = this.state.subjectsCache['B2'] || [];
     const cachedSubjectsCampus = this.state.subjectsCache['CAMPUS'] || [];
+    const cachedSubjectsPrayers = this.state.subjectsCache['PRAYERS'] || [];
     const allCachedSubjectsMap = new Map();
-    [...cachedSubjectsB1, ...cachedSubjectsB2, ...cachedSubjectsCampus].forEach(sub => allCachedSubjectsMap.set(sub.subject_id, sub));
+    [...cachedSubjectsB1, ...cachedSubjectsB2, ...cachedSubjectsCampus, ...cachedSubjectsPrayers].forEach(sub => allCachedSubjectsMap.set(sub.subject_id, sub));
 
     if (allCachedStudents.length > 0) {
       const curStudent = studentSelector.value;
@@ -1371,7 +1372,11 @@ const app = {
         if (this.state.reportsSubjectsMap && this.state.reportsSubjectsMap.has(sid)) {
           return this.state.reportsSubjectsMap.get(sid).subject_name;
         }
-        const allSubjects = [...(this.state.subjectsCache['B1'] || []), ...(this.state.subjectsCache['B2'] || [])];
+        const allSubjects = [
+          ...(this.state.subjectsCache['B1'] || []),
+          ...(this.state.subjectsCache['B2'] || []),
+          ...(this.state.subjectsCache['PRAYERS'] || [])
+        ];
         const found = allSubjects.find(s => String(s.subject_id).trim() === String(sid).trim());
         return found ? found.subject_name : sid;
       };
