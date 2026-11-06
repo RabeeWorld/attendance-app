@@ -277,7 +277,7 @@
 
     <!-- 4. REPORTS SCREEN -->
     <section id="reports-screen" class="screen hidden">
-      <div class="screen-header">
+      <div id="reports-screen-header" class="screen-header">
         <div class="screen-header-inner">
           <div class="screen-badge-icon">📈</div>
           <div>
@@ -293,12 +293,19 @@
       <!-- Student Welcome Card -->
       <div id="student-welcome-card" class="student-welcome-card hidden"></div>
 
+      <!-- Student View Tabs (Attendance vs PDC Fund) -->
+      <div id="student-view-tabs" class="student-view-tabs hidden">
+        <button type="button" id="tab-student-attendance-btn" class="student-tab-pill active">📊 Attendance Records</button>
+        <button type="button" id="tab-student-pdc-btn" class="student-tab-pill">💰 PDC Fund</button>
+      </div>
+
       <!-- Report Type Tabs (Segmented Control) -->
       <div class="report-tabs">
         <button id="tab-student-btn" class="tab-btn active-tab">👤 Student Report</button>
         <button id="tab-subject-btn" class="tab-btn">📚 Subject Report</button>
         <button id="tab-campus-btn" class="tab-btn">🏫 Campus Report</button>
         <button id="tab-prayers-btn" class="tab-btn">🕌 Prayers Report</button>
+        <button id="tab-pdc-fund-btn" class="tab-btn">💰 PDC Fund</button>
       </div>
 
       <!-- Student Report Panel -->
@@ -382,6 +389,66 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      
+
+      <!-- Student PDC Fund Panel -->
+      <div id="student-pdc-fund-panel" class="report-panel hidden">
+        <!-- 3 Summary Metrics Cards -->
+        <div class="stats-grid pdc-student-stats-grid mb-4">
+          <div class="stat-card glass-card">
+            <span class="stat-label">Total Fund Collected</span>
+            <span id="pdc-student-total-collected" class="stat-value highlight-blue">₹0</span>
+            <span class="stat-unit">All-time contribution</span>
+          </div>
+          <div class="stat-card glass-card">
+            <span class="stat-label">Today's Collection</span>
+            <span id="pdc-student-today-collected" class="stat-value text-green">₹0</span>
+            <span id="pdc-student-today-badge" class="stat-unit badge-pill pending">Pending Submission</span>
+          </div>
+          <div class="stat-card glass-card">
+            <span class="stat-label">Days Contributed</span>
+            <span id="pdc-student-days-contributed" class="stat-value text-purple">0</span>
+            <span class="stat-unit">Active contribution days</span>
+          </div>
+        </div>
+
+        <!-- Today's Active Entry Card -->
+        <div class="history-list-card glass-card mb-4" id="pdc-student-entry-container">
+          <!-- Injected dynamically by JS -->
+        </div>
+
+        <!-- PDC Fund Calendar & History Tracking -->
+        <div class="history-list-card glass-card">
+          <div class="card-header-row mb-3" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <h3 class="mb-0">Fund Collection Calendar</h3>
+              <p class="text-muted" style="font-size: 0.85rem; margin-top: 2px;">Track your daily contributions across past and current calendar dates.</p>
+            </div>
+            <span class="badge-pill" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 600;">● Active Tracking</span>
+          </div>
+          
+          <!-- Mini Calendar (Reused Attendance Calendar Structure) -->
+          <div class="mini-calendar-wrapper">
+            <div class="mini-calendar-header">
+              <button id="pdc-mc-prev-month" class="mc-nav-btn" type="button" aria-label="Previous Month">&lt;</button>
+              <div id="pdc-mc-month-year" class="mc-month-year">November 2026</div>
+              <button id="pdc-mc-next-month" class="mc-nav-btn" type="button" aria-label="Next Month">&gt;</button>
+            </div>
+            <div class="mini-calendar-days">
+              <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+            </div>
+            <div id="pdc-mini-calendar-grid" class="mini-calendar-grid">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+          
+          <!-- Selected Date Detail Card -->
+          <div id="pdc-selected-date-detail" class="pdc-date-detail-box mt-3">
+            <!-- Injected by JS -->
           </div>
         </div>
       </div>
@@ -564,12 +631,210 @@
           </div>
         </div>
       </div>
+    
+      <!-- 5. TEACHER / ADMIN PDC FUND PANEL -->
+      <div id="pdc-fund-panel" class="report-panel hidden">
+        <!-- PDC Fund Subsection Tabs -->
+        <div class="report-tabs pdc-inner-tabs mb-4">
+          <button type="button" class="tab-btn active-tab" id="pdc-subtab-daily-btn">📅 Daily Collections</button>
+          <button type="button" class="tab-btn" id="pdc-subtab-alltime-btn">🏆 All-Time Overview</button>
+        </div>
+
+        <!-- Subsection 1: Daily Collections -->
+        <div id="pdc-daily-subsection" class="pdc-subsection">
+          <!-- Top Controls & Action Bar -->
+          <div class="filter-bar glass-card mb-3 pdc-admin-controls-card">
+            <div class="pdc-controls-row">
+              <div class="form-group mb-0 date-picker-group">
+                <label for="pdc-admin-date-picker">Select Calendar Date</label>
+                <input type="date" id="pdc-admin-date-picker" class="form-control custom-date">
+              </div>
+              <div class="pdc-actions-wrapper">
+                <div class="pdc-last-updated-text" id="pdc-last-updated-label">
+                  <span>🕒 Last Synced: </span><strong id="pdc-admin-last-sync-time">Just now</strong>
+                </div>
+                <button type="button" id="pdc-admin-refresh-btn" class="btn primary-btn btn-sm" title="Refresh data for selected date">
+                  <span class="refresh-icon">🔄</span> Refresh Table
+                </button>
+              </div>
+            </div>
+
+            <!-- Column Visibility Toggles -->
+            <div class="pdc-toggles-row mt-3">
+              <span class="toggles-label">Column Visibility:</span>
+              <button type="button" id="toggle-col-amount-btn" class="btn outline-btn btn-xs col-toggle-btn active" data-col="amount">
+                👁️ Amount: <strong id="toggle-col-amount-state">Show</strong>
+              </button>
+              <button type="button" id="toggle-col-place-btn" class="btn outline-btn btn-xs col-toggle-btn active" data-col="place">
+                👁️ Place: <strong id="toggle-col-place-state">Show</strong>
+              </button>
+              <button type="button" id="toggle-col-status-btn" class="btn outline-btn btn-xs col-toggle-btn active" data-col="status">
+                👁️ Status: <strong id="toggle-col-status-state">Show</strong>
+              </button>
+            </div>
+          </div>
+
+          <!-- Daily Collection Summary Cards (4 Cards) -->
+          <div class="stats-grid pdc-daily-stats-grid mb-4">
+            <div class="stat-card glass-card">
+              <span class="stat-label">Total Amount Collected</span>
+              <span id="pdc-daily-total-display" class="stat-value highlight-blue">₹0</span>
+              <span class="stat-unit" id="pdc-daily-date-subtext">Selected date</span>
+            </div>
+            <div class="stat-card glass-card">
+              <span class="stat-label">Students Contributed</span>
+              <span id="pdc-daily-contributed-count" class="stat-value text-green">0</span>
+              <span class="stat-unit">Submissions recorded</span>
+            </div>
+            <div class="stat-card glass-card">
+              <span class="stat-label">Total Students</span>
+              <span id="pdc-daily-total-students-count" class="stat-value text-blue">0</span>
+              <span class="stat-unit">Active students</span>
+            </div>
+            <div class="stat-card glass-card">
+              <span class="stat-label">Not Contributed</span>
+              <span id="pdc-daily-not-contributed-count" class="stat-value text-red">0</span>
+              <span class="stat-unit">Pending entries</span>
+            </div>
+          </div>
+
+          <!-- Ranked Collection Table Card -->
+          <div class="history-list-card glass-card">
+            <div class="daily-table-header-row mb-3">
+              <div>
+                <h3 class="mb-0">Daily Fund Leaderboard (<span id="pdc-table-date-label">Today</span>)</h3>
+                <p class="text-muted" style="font-size: 0.85rem; margin-top: 3px;">Ranked in descending order of collection. Click any student row to inspect detailed records.</p>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="report-table pdc-leaderboard-table" id="pdc-admin-table">
+                <thead>
+                  <tr>
+                    <th class="col-rank text-center">Rank</th>
+                    <th class="col-student-name">Student Name</th>
+                    <th class="col-amount text-right col-pdc-amount-header">Amount Collected</th>
+                    <th class="col-place col-pdc-place">Place</th>
+                    <th class="col-status text-center col-pdc-status">Collection Status</th>
+                  </tr>
+                </thead>
+                <tbody id="pdc-admin-table-tbody">
+                  <tr><td colspan="5" class="text-center py-4 text-muted">Loading collection records...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subsection 2: All-Time Overview (Overview Box & Total Collected Table) -->
+        <div id="pdc-alltime-subsection" class="pdc-subsection hidden">
+          <!-- Overall Fund Collection Summary (All-Time Banner) -->
+          <div class="setup-card glass-card accent-card mb-4 pdc-overall-banner">
+            <div class="pdc-overall-content">
+              <div class="pdc-overall-main">
+                <span class="badge-label">💰 All-Time Fund Overview</span>
+                <h3 class="pdc-overall-amount" id="pdc-overall-total-display">₹0</h3>
+                <p class="pdc-overall-desc">Total cumulative fund collected across all students & recorded dates</p>
+              </div>
+              <div class="pdc-overall-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Total Contributing Students</span>
+                  <span class="meta-value" id="pdc-overall-contributors-display">0 Students</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Fund Collection by Students Table (Only Student Name & Amount Collected, Sorted Descending) -->
+          <div class="history-list-card glass-card" id="pdc-total-collected-card">
+            <div class="daily-table-header-row mb-3">
+              <div>
+                <h3 class="mb-0">💰 Total Fund Collected by Students</h3>
+                <p class="text-muted" style="font-size: 0.85rem; margin-top: 3px;">Sorted in descending order of total amount collected by each student across all recorded dates.</p>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="report-table" id="pdc-total-collected-table">
+                <thead>
+                  <tr>
+                    <th class="col-student-name">Student Name</th>
+                    <th class="col-amount text-right col-pdc-total-header">Amount Collected</th>
+                  </tr>
+                </thead>
+                <tbody id="pdc-total-collected-tbody">
+                  <tr><td colspan="2" class="text-center py-4 text-muted">Loading total collection records...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </section>
 
   </main>
 
   <!-- Notification Toast Container -->
-  <div id="toast-container" class="toast-container"></div>
+  
+  <!-- Student PDC Detail Modal (Admin/Teacher Inspection) -->
+  <div id="pdc-student-detail-modal" class="modal-overlay hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="pdc-modal-student-name" style="margin: 0; font-size: 1.25rem;">Student Name</h3>
+          <span id="pdc-modal-student-roll" class="badge-pill" style="margin-top: 4px; display: inline-block;">Roll No: -</span>
+        </div>
+        <button type="button" id="pdc-modal-close-btn" class="modal-close-btn" aria-label="Close Modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="pdc-modal-stats mb-3">
+          <div class="modal-stat-box">
+            <span class="stat-label">Selected Date Collection</span>
+            <span id="pdc-modal-day-amount" class="stat-value text-green">₹0</span>
+            <span id="pdc-modal-day-place" class="stat-unit" style="font-size: 0.8rem; color: #64748b;">Place: -</span>
+          </div>
+          <div class="modal-stat-box">
+            <span class="stat-label">All-Time Total</span>
+            <span id="pdc-modal-all-time" class="stat-value highlight-blue">₹0</span>
+            <span class="stat-unit" style="font-size: 0.8rem; color: #64748b;">Cumulative</span>
+          </div>
+        </div>
+        <div class="pdc-modal-meta-list mb-3">
+          <div class="meta-row"><strong>First Submitted:</strong> <span id="pdc-modal-created-at">-</span></div>
+          <div class="meta-row"><strong>Last Updated:</strong> <span id="pdc-modal-updated-at">-</span></div>
+        </div>
+        <h4 style="margin-top: 15px; margin-bottom: 8px; font-size: 1rem;">Collection History</h4>
+        <div id="pdc-modal-history-list" class="pdc-modal-history-container">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDC Delete Confirmation Modal (Student Active Entry Deletion) -->
+  <div id="pdc-delete-confirm-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pdc-confirm-title">
+    <div class="modal-card pdc-confirm-modal-card glass-card">
+      <div class="pdc-confirm-icon-box">
+        <div class="pdc-confirm-icon-circle">
+          🗑️
+        </div>
+      </div>
+      <h3 id="pdc-confirm-title" class="pdc-confirm-title">Delete Fund Entry?</h3>
+      <p class="pdc-confirm-message">
+        Are you sure you want to delete today’s fund entry? You can add a replacement entry afterwards.
+      </p>
+      <div class="pdc-confirm-actions">
+        <button type="button" id="pdc-modal-cancel-delete" class="btn secondary-btn btn-md">
+          Cancel
+        </button>
+        <button type="button" id="pdc-modal-confirm-delete" class="btn btn-danger-action btn-md">
+          🗑️ Yes, Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+<div id="toast-container" class="toast-container"></div>
 
   <!-- Scripts loaded sequentially -->
   <script src="js/config.js"></script>

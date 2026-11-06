@@ -68,7 +68,29 @@ const app = {
       attendanceMap: {},
       isEditing: false
     },
-    deferredPrompt: null
+    deferredPrompt: null,
+    pdcStudentState: {
+      records: [],
+      summary: { total_amount: 0, today_amount: 0, days_contributed: 0 },
+      todayEntry: null,
+      selectedCalendarDate: null,
+      calendarMonth: new Date().getMonth(),
+      calendarYear: new Date().getFullYear(),
+      isEditing: false,
+      serverToday: null
+    },
+    pdcAdminState: {
+      selectedDate: null,
+      data: null,
+      columnVisibility: (() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem('slaq_pdc_col_prefs') || 'null');
+          if (saved) return saved;
+        } catch (e) {}
+        return { amount: true, place: true, status: true };
+      })(),
+      lastSynced: null
+    }
   },
 
   /**
@@ -123,15 +145,17 @@ const app = {
     const workspaceSubtitle = document.getElementById('workspace-subtitle');
     const reportBackBtn = document.getElementById('report-back-btn');
     const welcomeCard = document.getElementById('student-welcome-card');
+    const reportsScreenHeader = document.getElementById('reports-screen-header');
     
     if (role === 'STUDENT') {
       // Hide marking screen nav
       if (homeNavBtn) homeNavBtn.style.display = 'none';
-      // Hide report tabs and selector
+      // Hide report tabs, selector, and admin screen header
       if (reportTabs) reportTabs.style.display = 'none';
       if (studentReportSelectorArea) studentReportSelectorArea.style.display = 'none';
       if (workspaceSubtitle) workspaceSubtitle.classList.add('hidden');
       if (reportBackBtn) reportBackBtn.classList.add('hidden');
+      if (reportsScreenHeader) reportsScreenHeader.classList.add('hidden');
       
       // Populate and show welcome card
       if (welcomeCard) {
@@ -160,6 +184,19 @@ const app = {
       
       this.showScreen('reports-screen');
       
+      const studentViewTabs = document.getElementById('student-view-tabs');
+      if (studentViewTabs) studentViewTabs.classList.remove('hidden');
+      const studentAttendanceTabBtn = document.getElementById('tab-student-attendance-btn');
+      const studentPdcTabBtn = document.getElementById('tab-student-pdc-btn');
+      if (studentAttendanceTabBtn) studentAttendanceTabBtn.classList.add('active');
+      if (studentPdcTabBtn) studentPdcTabBtn.classList.remove('active');
+      const studentReportPanel = document.getElementById('student-report-panel');
+      if (studentReportPanel) studentReportPanel.classList.remove('hidden');
+      const studentPdcPanel = document.getElementById('student-pdc-fund-panel');
+      if (studentPdcPanel) studentPdcPanel.classList.add('hidden');
+      const teacherPdcPanel = document.getElementById('pdc-fund-panel');
+      if (teacherPdcPanel) teacherPdcPanel.classList.add('hidden');
+      
       // Auto-load student report for this student
       if (user.linked_student_id) {
         this.loadStudentReportData(user.linked_student_id);
@@ -173,7 +210,12 @@ const app = {
       if (studentReportSelectorArea) studentReportSelectorArea.style.display = 'block';
       if (workspaceSubtitle) workspaceSubtitle.classList.remove('hidden');
       if (reportBackBtn) reportBackBtn.classList.remove('hidden');
+      if (reportsScreenHeader) reportsScreenHeader.classList.remove('hidden');
       if (welcomeCard) welcomeCard.classList.add('hidden');
+      const studentViewTabs = document.getElementById('student-view-tabs');
+      if (studentViewTabs) studentViewTabs.classList.add('hidden');
+      const studentPdcPanel = document.getElementById('student-pdc-fund-panel');
+      if (studentPdcPanel) studentPdcPanel.classList.add('hidden');
       
       this.showScreen('home-screen');
       this.loadHomeSetupData();
@@ -390,6 +432,7 @@ const app = {
         localStorage.removeItem('slaq_auth_user');
         this.state.isAuthenticated = false;
         this.state.user = null;
+        this.resetUserState();
         const workspaceSubtitle = document.getElementById('workspace-subtitle');
         if (workspaceSubtitle) workspaceSubtitle.classList.add('hidden');
         this.showScreen('login-screen');
@@ -483,6 +526,8 @@ const app = {
     const subjectPanel = document.getElementById('subject-report-panel');
     const campusPanel = document.getElementById('campus-report-panel');
     const prayersPanel = document.getElementById('prayers-report-panel');
+    const tabPdcFundBtn = document.getElementById('tab-pdc-fund-btn');
+    const pdcPanel = document.getElementById('pdc-fund-panel');
 
     if (tabStudentBtn && tabSubjectBtn && tabCampusBtn && tabPrayersBtn) {
       tabStudentBtn.addEventListener('click', () => {
@@ -494,6 +539,8 @@ const app = {
         subjectPanel.classList.add('hidden');
         campusPanel.classList.add('hidden');
         prayersPanel.classList.add('hidden');
+        if (pdcPanel) pdcPanel.classList.add('hidden');
+        if (tabPdcFundBtn) tabPdcFundBtn.classList.remove('active-tab');
       });
 
       tabSubjectBtn.addEventListener('click', () => {
@@ -505,6 +552,8 @@ const app = {
         studentPanel.classList.add('hidden');
         campusPanel.classList.add('hidden');
         prayersPanel.classList.add('hidden');
+        if (pdcPanel) pdcPanel.classList.add('hidden');
+        if (tabPdcFundBtn) tabPdcFundBtn.classList.remove('active-tab');
       });
 
       tabCampusBtn.addEventListener('click', () => {
@@ -516,6 +565,8 @@ const app = {
         studentPanel.classList.add('hidden');
         subjectPanel.classList.add('hidden');
         prayersPanel.classList.add('hidden');
+        if (pdcPanel) pdcPanel.classList.add('hidden');
+        if (tabPdcFundBtn) tabPdcFundBtn.classList.remove('active-tab');
       });
 
       tabPrayersBtn.addEventListener('click', () => {
@@ -527,11 +578,169 @@ const app = {
         studentPanel.classList.add('hidden');
         subjectPanel.classList.add('hidden');
         campusPanel.classList.add('hidden');
+        if (pdcPanel) pdcPanel.classList.add('hidden');
+        if (tabPdcFundBtn) tabPdcFundBtn.classList.remove('active-tab');
         
         const repPrayersDate = document.getElementById('report-prayers-date');
         const contentPanel = document.getElementById('prayers-report-content');
         if (repPrayersDate && contentPanel && contentPanel.classList.contains('hidden')) {
           this.loadPrayersReportData(repPrayersDate.value);
+        }
+      });
+    }
+
+    // 8b. PDC Fund Main Tab for Teachers/Admins
+    if (tabPdcFundBtn && pdcPanel) {
+      tabPdcFundBtn.addEventListener('click', () => {
+        tabPdcFundBtn.classList.add('active-tab');
+        if (tabStudentBtn) tabStudentBtn.classList.remove('active-tab');
+        if (tabSubjectBtn) tabSubjectBtn.classList.remove('active-tab');
+        if (tabCampusBtn) tabCampusBtn.classList.remove('active-tab');
+        if (tabPrayersBtn) tabPrayersBtn.classList.remove('active-tab');
+
+        pdcPanel.classList.remove('hidden');
+
+        // Reset to Daily subsection by default
+        const subDailyBtn = document.getElementById('pdc-subtab-daily-btn');
+        const subAlltimeBtn = document.getElementById('pdc-subtab-alltime-btn');
+        const dailySub = document.getElementById('pdc-daily-subsection');
+        const alltimeSub = document.getElementById('pdc-alltime-subsection');
+        if (subDailyBtn) subDailyBtn.classList.add('active-tab');
+        if (subAlltimeBtn) subAlltimeBtn.classList.remove('active-tab');
+        if (dailySub) dailySub.classList.remove('hidden');
+        if (alltimeSub) alltimeSub.classList.add('hidden');
+        if (studentPanel) studentPanel.classList.add('hidden');
+        if (subjectPanel) subjectPanel.classList.add('hidden');
+        if (campusPanel) campusPanel.classList.add('hidden');
+        if (prayersPanel) prayersPanel.classList.add('hidden');
+
+        const datePicker = document.getElementById('pdc-admin-date-picker');
+        if (datePicker) {
+          if (!datePicker.value) {
+            datePicker.value = this.getLocalDateString();
+          }
+          this.loadTeacherPdcFundReport(datePicker.value);
+        }
+      });
+    }
+
+    // 8c. Student View Sub-Tabs (Attendance vs PDC Fund)
+    const tabStudentAttendanceBtn = document.getElementById('tab-student-attendance-btn');
+    const tabStudentPdcBtn = document.getElementById('tab-student-pdc-btn');
+    const studentReportPanel = document.getElementById('student-report-panel');
+    const studentPdcPanel = document.getElementById('student-pdc-fund-panel');
+
+    if (tabStudentAttendanceBtn && tabStudentPdcBtn) {
+      tabStudentAttendanceBtn.addEventListener('click', () => {
+        tabStudentAttendanceBtn.classList.add('active');
+        tabStudentPdcBtn.classList.remove('active');
+        if (studentReportPanel) studentReportPanel.classList.remove('hidden');
+        if (studentPdcPanel) studentPdcPanel.classList.add('hidden');
+      });
+
+      tabStudentPdcBtn.addEventListener('click', () => {
+        tabStudentPdcBtn.classList.add('active');
+        tabStudentAttendanceBtn.classList.remove('active');
+        if (studentReportPanel) studentReportPanel.classList.add('hidden');
+        if (studentPdcPanel) studentPdcPanel.classList.remove('hidden');
+
+        const user = this.state.user;
+        if (user && user.linked_student_id) {
+          this.loadStudentPdcFundData(user.linked_student_id);
+        }
+      });
+    }
+
+    // 8c-2. PDC Fund Inner Subsection Tabs (Daily Collections vs All-Time Overview)
+    const pdcSubtabDailyBtn = document.getElementById('pdc-subtab-daily-btn');
+    const pdcSubtabAlltimeBtn = document.getElementById('pdc-subtab-alltime-btn');
+    const pdcDailySubsection = document.getElementById('pdc-daily-subsection');
+    const pdcAlltimeSubsection = document.getElementById('pdc-alltime-subsection');
+
+    if (pdcSubtabDailyBtn && pdcSubtabAlltimeBtn && pdcDailySubsection && pdcAlltimeSubsection) {
+      pdcSubtabDailyBtn.addEventListener('click', () => {
+        pdcSubtabDailyBtn.classList.add('active-tab');
+        pdcSubtabAlltimeBtn.classList.remove('active-tab');
+        pdcDailySubsection.classList.remove('hidden');
+        pdcAlltimeSubsection.classList.add('hidden');
+      });
+
+      pdcSubtabAlltimeBtn.addEventListener('click', () => {
+        pdcSubtabAlltimeBtn.classList.add('active-tab');
+        pdcSubtabDailyBtn.classList.remove('active-tab');
+        pdcAlltimeSubsection.classList.remove('hidden');
+        pdcDailySubsection.classList.add('hidden');
+
+        // Render cumulative rankings
+        if (this.state.pdcAdminState.data && this.state.pdcAdminState.data.students) {
+          this.renderOverallStudentRankings(this.state.pdcAdminState.data.students);
+        } else {
+          this.loadTeacherPdcFundReport(this.getLocalDateString());
+        }
+      });
+    }
+
+    // 8d. Teacher PDC Fund Controls (Date Picker, Refresh, Column Toggles)
+    const pdcAdminDatePicker = document.getElementById('pdc-admin-date-picker');
+    if (pdcAdminDatePicker) {
+      pdcAdminDatePicker.addEventListener('change', (e) => {
+        if (e.target.value) {
+          this.loadTeacherPdcFundReport(e.target.value);
+        }
+      });
+    }
+
+    const pdcAdminRefreshBtn = document.getElementById('pdc-admin-refresh-btn');
+    if (pdcAdminRefreshBtn) {
+      pdcAdminRefreshBtn.addEventListener('click', () => {
+        const picker = document.getElementById('pdc-admin-date-picker');
+        const selectedDate = picker && picker.value ? picker.value : this.getLocalDateString();
+        this.loadTeacherPdcFundReport(selectedDate, true);
+      });
+    }
+
+    // Column Toggles
+    const toggleAmountBtn = document.getElementById('toggle-col-amount-btn');
+    const togglePlaceBtn = document.getElementById('toggle-col-place-btn');
+    const toggleStatusBtn = document.getElementById('toggle-col-status-btn');
+
+    if (toggleAmountBtn) {
+      toggleAmountBtn.addEventListener('click', () => {
+        const current = this.state.pdcAdminState.columnVisibility.amount !== false;
+        this.state.pdcAdminState.columnVisibility.amount = !current;
+        this.savePdcColumnPrefs();
+        this.applyTeacherPdcColumnVisibility();
+      });
+    }
+
+    if (togglePlaceBtn) {
+      togglePlaceBtn.addEventListener('click', () => {
+        const current = this.state.pdcAdminState.columnVisibility.place !== false;
+        this.state.pdcAdminState.columnVisibility.place = !current;
+        this.savePdcColumnPrefs();
+        this.applyTeacherPdcColumnVisibility();
+      });
+    }
+
+    if (toggleStatusBtn) {
+      toggleStatusBtn.addEventListener('click', () => {
+        const current = this.state.pdcAdminState.columnVisibility.status !== false;
+        this.state.pdcAdminState.columnVisibility.status = !current;
+        this.savePdcColumnPrefs();
+        this.applyTeacherPdcColumnVisibility();
+      });
+    }
+
+    // Modal close listeners
+    const modalCloseBtn = document.getElementById('pdc-modal-close-btn');
+    const modalOverlay = document.getElementById('pdc-student-detail-modal');
+    if (modalCloseBtn && modalOverlay) {
+      modalCloseBtn.addEventListener('click', () => {
+        modalOverlay.classList.add('hidden');
+      });
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+          modalOverlay.classList.add('hidden');
         }
       });
     }
@@ -1329,9 +1538,78 @@ const app = {
   /**
    * Load and render Individual Student Report
    */
+  /**
+   * Reset user state & clear cached DOM elements upon logout or user switch
+   */
+  resetUserState() {
+    this.state.pdcStudentState = {
+      records: [],
+      summary: { total_amount: 0, today_amount: 0, days_contributed: 0 },
+      todayEntry: null,
+      selectedCalendarDate: null,
+      calendarMonth: new Date().getMonth(),
+      calendarYear: new Date().getFullYear(),
+      isEditing: false,
+      serverToday: null
+    };
+
+    // Reset Attendance Summary DOM
+    const pctEl = document.getElementById('rep-student-percentage');
+    const presEl = document.getElementById('rep-student-present');
+    const lateEl = document.getElementById('rep-student-late');
+    const absEl = document.getElementById('rep-student-absent');
+    const leaveEl = document.getElementById('rep-student-leave');
+    const histList = document.getElementById('student-history-list');
+    if (pctEl) pctEl.textContent = '0%';
+    if (presEl) presEl.textContent = '0';
+    if (lateEl) lateEl.textContent = '0';
+    if (absEl) absEl.textContent = '0';
+    if (leaveEl) leaveEl.textContent = '0';
+    if (histList) histList.innerHTML = '';
+
+    // Reset PDC Fund Summary DOM
+    const totalEl = document.getElementById('pdc-student-total-collected');
+    const todayEl = document.getElementById('pdc-student-today-collected');
+    const badgeEl = document.getElementById('pdc-student-today-badge');
+    const daysEl = document.getElementById('pdc-student-days-contributed');
+    const container = document.getElementById('pdc-student-entry-container');
+    const calGrid = document.getElementById('pdc-mini-calendar-grid');
+    const dateDetail = document.getElementById('pdc-selected-date-detail');
+
+    if (totalEl) totalEl.textContent = '₹0';
+    if (todayEl) todayEl.textContent = '₹0';
+    if (daysEl) daysEl.textContent = '0 Days';
+    if (badgeEl) {
+      badgeEl.className = 'stat-unit badge-pill';
+      badgeEl.textContent = 'Pending Submission';
+    }
+    if (container) container.innerHTML = '';
+    if (calGrid) calGrid.innerHTML = '';
+    if (dateDetail) dateDetail.innerHTML = '';
+
+    // Reset Student Welcome Card
+    const welcomeCard = document.getElementById('student-welcome-card');
+    if (welcomeCard) {
+      welcomeCard.innerHTML = '';
+      welcomeCard.classList.add('hidden');
+    }
+  },
+
   async loadStudentReportData(studentId) {
     const contentPanel = document.getElementById('student-report-content');
     const historyList = document.getElementById('student-history-list');
+
+    // Immediately reset stat numbers so previous student's stats don't flash
+    const pctEl = document.getElementById('rep-student-percentage');
+    const presEl = document.getElementById('rep-student-present');
+    const lateEl = document.getElementById('rep-student-late');
+    const absEl = document.getElementById('rep-student-absent');
+    const leaveEl = document.getElementById('rep-student-leave');
+    if (pctEl) pctEl.textContent = '...';
+    if (presEl) presEl.textContent = '...';
+    if (lateEl) lateEl.textContent = '...';
+    if (absEl) absEl.textContent = '...';
+    if (leaveEl) leaveEl.textContent = '...';
 
     contentPanel.classList.remove('hidden');
     historyList.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Calculating attendance percentage...</p></div>';
@@ -2230,6 +2508,936 @@ const app = {
       console.error('[Prayers Overall Report Error]', error);
       tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red py-3 font-bold">Error loading report: ${error.message}</td></tr>`;
     }
+  },
+
+  /* ============================================================================
+   * PDC FUND IMPLEMENTATION (Student & Teacher Dashboard)
+   * ============================================================================ */
+
+  escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  },
+
+  formatIsoTimestamp(isoString) {
+    if (!isoString) return '-';
+    try {
+      let cleanIso = String(isoString).trim();
+
+      // If timestamp has trailing 'Z' while being in local Kolkata time,
+      // parse it without the 'Z' to avoid a redundant +5:30 UTC offset
+      if (cleanIso.endsWith('Z') && !cleanIso.includes('+')) {
+        const withoutZ = cleanIso.slice(0, -1);
+        const testD = new Date(withoutZ);
+        if (!isNaN(testD.getTime())) {
+          return testD.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+                 testD.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+      }
+
+      const d = new Date(cleanIso);
+      if (isNaN(d.getTime())) return isoString;
+      return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+             d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch (e) {
+      return isoString;
+    }
+  },
+
+  savePdcColumnPrefs() {
+    try {
+      localStorage.setItem('slaq_pdc_col_prefs', JSON.stringify(this.state.pdcAdminState.columnVisibility));
+    } catch (e) {}
+  },
+
+  /**
+   * Load student PDC Fund details
+   */
+  async loadStudentPdcFundData(studentId) {
+    if (!studentId) return;
+
+    // Reset student state immediately so previous student's details never flash
+    this.state.pdcStudentState = {
+      records: [],
+      summary: { total_amount: 0, today_amount: 0, days_contributed: 0 },
+      todayEntry: null,
+      selectedCalendarDate: null,
+      calendarMonth: new Date().getMonth(),
+      calendarYear: new Date().getFullYear(),
+      isEditing: false,
+      serverToday: null
+    };
+
+    // Immediately show loading placeholder on summary cards
+    const totalEl = document.getElementById('pdc-student-total-collected');
+    const todayEl = document.getElementById('pdc-student-today-collected');
+    const badgeEl = document.getElementById('pdc-student-today-badge');
+    const daysEl = document.getElementById('pdc-student-days-contributed');
+    if (totalEl) totalEl.textContent = '...';
+    if (todayEl) todayEl.textContent = '...';
+    if (daysEl) daysEl.textContent = '...';
+    if (badgeEl) {
+      badgeEl.className = 'stat-unit badge-pill';
+      badgeEl.textContent = '● Loading...';
+    }
+
+    const container = document.getElementById('pdc-student-entry-container');
+    if (container) {
+      container.innerHTML = '<p class="text-center py-4 text-muted">Loading your PDC Fund portal...</p>';
+    }
+
+    try {
+      const data = await api.getPdcFundForStudent(studentId);
+      if (data && data.success) {
+        this.state.pdcStudentState.records = data.records || [];
+        this.state.pdcStudentState.summary = data.summary || { total_amount: 0, today_amount: 0, days_contributed: 0 };
+        this.state.pdcStudentState.todayEntry = data.today_entry || null;
+        this.state.pdcStudentState.serverToday = data.server_today || this.getLocalDateString();
+
+        if (!this.state.pdcStudentState.selectedCalendarDate) {
+          this.state.pdcStudentState.selectedCalendarDate = this.state.pdcStudentState.serverToday;
+        }
+
+        this.renderStudentPdcSummary();
+        this.renderStudentPdcEntryCard();
+        this.renderStudentPdcCalendar();
+      }
+    } catch (err) {
+      console.error('Error loading student PDC Fund:', err);
+      this.showToast('Could not load PDC Fund details. Using local records.', 'warning');
+    }
+  },
+
+  renderStudentPdcSummary() {
+    const summary = this.state.pdcStudentState.summary || { total_amount: 0, today_amount: 0, days_contributed: 0 };
+    const todayEntry = this.state.pdcStudentState.todayEntry;
+
+    const totalEl = document.getElementById('pdc-student-total-collected');
+    const todayEl = document.getElementById('pdc-student-today-collected');
+    const badgeEl = document.getElementById('pdc-student-today-badge');
+    const daysEl = document.getElementById('pdc-student-days-contributed');
+
+    if (totalEl) totalEl.textContent = `₹${(summary.total_amount || 0).toLocaleString('en-IN')}`;
+    if (todayEl) todayEl.textContent = `₹${(summary.today_amount || 0).toLocaleString('en-IN')}`;
+    if (daysEl) daysEl.textContent = `${summary.days_contributed || 0} Days`;
+
+    if (badgeEl) {
+      if (todayEntry && Number(todayEntry.amount) > 0) {
+        badgeEl.textContent = '● Submitted Today';
+        badgeEl.className = 'stat-unit badge-pill count-present';
+      } else {
+        badgeEl.textContent = 'Pending Submission';
+        badgeEl.className = 'stat-unit badge-pill count-unmarked';
+      }
+    }
+  },
+
+  renderStudentPdcEntryCard() {
+    const container = document.getElementById('pdc-student-entry-container');
+    if (!container) return;
+
+    const user = this.state.user || {};
+    const studentId = user.linked_student_id;
+    const serverToday = this.state.pdcStudentState.serverToday || this.getLocalDateString();
+    const todayEntry = this.state.pdcStudentState.todayEntry;
+    const isEditing = this.state.pdcStudentState.isEditing;
+
+    const todayDateObj = new Date();
+    const formattedDate = todayDateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    if (!todayEntry) {
+      // State A: No entry exists for today -> Show Add Form
+      container.innerHTML = `
+        <div class="pdc-entry-header">
+          <div>
+            <h3 class="mb-0">Today's Fund Contribution</h3>
+            <p class="text-muted mb-0" style="font-size: 0.85rem;">Add your collected fund amount for the current date.</p>
+          </div>
+          <span class="pdc-today-badge">📅 ${formattedDate}</span>
+        </div>
+
+        <form id="pdc-add-entry-form" class="mt-3">
+          <div class="form-group mb-3">
+            <label for="pdc-amount-input">Amount Collected (₹) *</label>
+            <div class="pdc-input-with-symbol">
+              <span class="pdc-currency-symbol">₹</span>
+              <input type="number" id="pdc-amount-input" class="form-control" placeholder="Enter amount (e.g. 500)" min="1" step="any" required>
+            </div>
+          </div>
+          <div class="form-group mb-3">
+            <label for="pdc-place-input">Collection Place / Location *</label>
+            <input type="text" id="pdc-place-input" class="form-control" placeholder="e.g. Kozhikode Town / Main Gate" required>
+          </div>
+          <button type="submit" id="pdc-submit-btn" class="btn primary-btn btn-lg w-100" style="margin-top: 10px;">
+            <span>➕ Submit Today's Collection</span>
+          </button>
+        </form>
+      `;
+
+      const form = document.getElementById('pdc-add-entry-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const amtInput = document.getElementById('pdc-amount-input');
+        const placeInput = document.getElementById('pdc-place-input');
+        const submitBtn = document.getElementById('pdc-submit-btn');
+
+        const amount = Number(amtInput.value);
+        const place = placeInput.value.trim();
+
+        if (isNaN(amount) || amount <= 0) {
+          this.showToast('Amount must be greater than zero.', 'error');
+          amtInput.focus();
+          return;
+        }
+        if (!place) {
+          this.showToast('Please mention the collection place.', 'error');
+          placeInput.focus();
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Saving Entry...</span>';
+
+        try {
+          const res = await api.savePdcFundEntry({
+            student_id: studentId,
+            student_name: user.name || '',
+            date: serverToday,
+            amount: amount,
+            place: place
+          });
+
+          if (res && res.success) {
+            this.showToast('Fund entry saved successfully!', 'success');
+            await this.loadStudentPdcFundData(studentId);
+          } else {
+            this.showToast(res.message || res.error || 'Failed to save fund entry.', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          this.showToast(err.message || 'Network error saving entry.', 'error');
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+
+    } else if (isEditing) {
+      // State C: Editing existing entry
+      container.innerHTML = `
+        <div class="pdc-entry-header">
+          <div>
+            <h3 class="mb-0">Edit Today's Fund Entry</h3>
+            <p class="text-muted mb-0" style="font-size: 0.85rem;">Modify the amount or collection place for today.</p>
+          </div>
+          <span class="pdc-today-badge">📅 ${formattedDate}</span>
+        </div>
+
+        <form id="pdc-edit-entry-form" class="mt-3">
+          <div class="form-group mb-3">
+            <label for="pdc-edit-amount-input">Amount Collected (₹) *</label>
+            <div class="pdc-input-with-symbol">
+              <span class="pdc-currency-symbol">₹</span>
+              <input type="number" id="pdc-edit-amount-input" class="form-control" value="${todayEntry.amount}" min="1" step="any" required>
+            </div>
+          </div>
+          <div class="form-group mb-3">
+            <label for="pdc-edit-place-input">Collection Place / Location *</label>
+            <input type="text" id="pdc-edit-place-input" class="form-control" value="${this.escapeHtml(todayEntry.place)}" required>
+          </div>
+          <div class="pdc-active-actions">
+            <button type="submit" id="pdc-save-edit-btn" class="btn primary-btn btn-md">
+              💾 Save Changes
+            </button>
+            <button type="button" id="pdc-cancel-edit-btn" class="btn secondary-btn btn-md">
+              ✖ Cancel
+            </button>
+          </div>
+        </form>
+      `;
+
+      document.getElementById('pdc-cancel-edit-btn').addEventListener('click', () => {
+        this.state.pdcStudentState.isEditing = false;
+        this.renderStudentPdcEntryCard();
+      });
+
+      const editForm = document.getElementById('pdc-edit-entry-form');
+      editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const amtInput = document.getElementById('pdc-edit-amount-input');
+        const placeInput = document.getElementById('pdc-edit-place-input');
+        const saveBtn = document.getElementById('pdc-save-edit-btn');
+
+        const amount = Number(amtInput.value);
+        const place = placeInput.value.trim();
+
+        if (isNaN(amount) || amount <= 0) {
+          this.showToast('Amount must be greater than zero.', 'error');
+          amtInput.focus();
+          return;
+        }
+        if (!place) {
+          this.showToast('Please mention the collection place.', 'error');
+          placeInput.focus();
+          return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+          const res = await api.savePdcFundEntry({
+            student_id: studentId,
+            student_name: user.name || '',
+            date: serverToday,
+            amount: amount,
+            place: place
+          });
+
+          if (res && res.success) {
+            this.showToast('Fund entry updated successfully!', 'success');
+            this.state.pdcStudentState.isEditing = false;
+            await this.loadStudentPdcFundData(studentId);
+          } else {
+            this.showToast(res.message || res.error || 'Failed to update entry.', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          this.showToast(err.message || 'Network error updating entry.', 'error');
+        } finally {
+          if (saveBtn) saveBtn.disabled = false;
+        }
+      });
+
+    } else {
+      // State B: Active Entry View with Edit & Delete options
+      const updatedTimeStr = todayEntry.updated_at ? this.formatIsoTimestamp(todayEntry.updated_at) : 'Today';
+      const createdTimeStr = todayEntry.created_at ? this.formatIsoTimestamp(todayEntry.created_at) : 'Today';
+
+      container.innerHTML = `
+        <div class="pdc-active-card">
+          <div class="pdc-entry-header">
+            <div>
+              <span class="badge-pill count-present" style="font-weight:700;">✅ Today's Active Entry</span>
+              <h4 style="margin: 4px 0 0 0; color: #64748b; font-size: 0.85rem;">Date: ${formattedDate}</h4>
+            </div>
+            <span class="pdc-today-badge">🕒 Last Updated: ${updatedTimeStr}</span>
+          </div>
+
+          <div class="pdc-amount-hero">₹${Number(todayEntry.amount).toLocaleString('en-IN')}</div>
+          
+          <div class="pdc-active-meta">
+            <div class="meta-item">
+              <span>📍 Place:</span>
+              <strong>${this.escapeHtml(todayEntry.place)}</strong>
+            </div>
+            <div class="meta-item">
+              <span>⏱️ Submitted At:</span>
+              <span>${createdTimeStr}</span>
+            </div>
+          </div>
+
+          <div class="pdc-active-actions">
+            <button type="button" id="pdc-edit-btn" class="btn outline-btn btn-sm">
+              ✏️ Edit Entry
+            </button>
+            <button type="button" id="pdc-delete-btn" class="btn secondary-btn btn-sm" style="color: #dc2626; border-color: rgba(220, 38, 38, 0.3);">
+              🗑️ Delete Entry
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('pdc-edit-btn').addEventListener('click', () => {
+        this.state.pdcStudentState.isEditing = true;
+        this.renderStudentPdcEntryCard();
+      });
+
+      document.getElementById('pdc-delete-btn').addEventListener('click', () => {
+        this.openDeletePdcConfirmModal(studentId, serverToday);
+      });
+    }
+  },
+
+  renderStudentPdcCalendar() {
+    const records = this.state.pdcStudentState.records || [];
+    const serverToday = this.state.pdcStudentState.serverToday || this.getLocalDateString();
+
+    const recordMap = {};
+    for (const r of records) {
+      if (r.date) {
+        recordMap[r.date] = r;
+      }
+    }
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const month = this.state.pdcStudentState.calendarMonth;
+    const year = this.state.pdcStudentState.calendarYear;
+
+    const monthYearEl = document.getElementById('pdc-mc-month-year');
+    if (monthYearEl) {
+      monthYearEl.textContent = `${monthNames[month]} ${year}`;
+    }
+
+    const grid = document.getElementById('pdc-mini-calendar-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'mc-day empty';
+      grid.appendChild(empty);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayCell = document.createElement('div');
+      dayCell.className = 'mc-day';
+      dayCell.textContent = day;
+
+      const cellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+      const isToday = cellDateStr === serverToday;
+      const isFuture = cellDateStr > serverToday;
+      const hasFund = recordMap[cellDateStr] && Number(recordMap[cellDateStr].amount) > 0;
+      const isSelected = cellDateStr === this.state.pdcStudentState.selectedCalendarDate;
+
+      if (isToday) dayCell.classList.add('mc-today');
+      if (hasFund) dayCell.classList.add('has-fund');
+      if (isSelected) dayCell.classList.add('selected');
+
+      if (isFuture) {
+        dayCell.classList.add('future-day');
+        dayCell.setAttribute('title', 'Future date — entry not permitted');
+      } else {
+        dayCell.addEventListener('click', () => {
+          document.querySelectorAll('#pdc-mini-calendar-grid .mc-day').forEach(el => el.classList.remove('selected'));
+          dayCell.classList.add('selected');
+          this.state.pdcStudentState.selectedCalendarDate = cellDateStr;
+          this.renderStudentPdcSelectedDateDetail(recordMap[cellDateStr], cellDateStr, isToday);
+        });
+      }
+
+      grid.appendChild(dayCell);
+    }
+
+    const prevBtn = document.getElementById('pdc-mc-prev-month');
+    const nextBtn = document.getElementById('pdc-mc-next-month');
+
+    if (prevBtn) {
+      prevBtn.onclick = () => {
+        let m = this.state.pdcStudentState.calendarMonth - 1;
+        let y = this.state.pdcStudentState.calendarYear;
+        if (m < 0) { m = 11; y--; }
+        this.state.pdcStudentState.calendarMonth = m;
+        this.state.pdcStudentState.calendarYear = y;
+        this.renderStudentPdcCalendar();
+      };
+    }
+
+    if (nextBtn) {
+      nextBtn.onclick = () => {
+        let m = this.state.pdcStudentState.calendarMonth + 1;
+        let y = this.state.pdcStudentState.calendarYear;
+        if (m > 11) { m = 0; y++; }
+        this.state.pdcStudentState.calendarMonth = m;
+        this.state.pdcStudentState.calendarYear = y;
+        this.renderStudentPdcCalendar();
+      };
+    }
+
+    const selectedDate = this.state.pdcStudentState.selectedCalendarDate || serverToday;
+    this.renderStudentPdcSelectedDateDetail(recordMap[selectedDate], selectedDate, selectedDate === serverToday);
+  },
+
+  renderStudentPdcSelectedDateDetail(entry, dateStr, isToday) {
+    const container = document.getElementById('pdc-selected-date-detail');
+    if (!container) return;
+
+    const displayDate = new Date(dateStr);
+    const dateFormatted = !isNaN(displayDate) 
+      ? displayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      : dateStr;
+
+    if (entry && Number(entry.amount) > 0) {
+      const createdStr = entry.created_at ? this.formatIsoTimestamp(entry.created_at) : 'Recorded';
+      const updatedStr = entry.updated_at ? this.formatIsoTimestamp(entry.updated_at) : createdStr;
+      const readOnlyBadge = !isToday ? '<span class="badge-pill count-unmarked" style="font-size:0.75rem;">(View-Only Historical Record)</span>' : '';
+
+      container.innerHTML = `
+        <div class="pdc-date-detail-header">
+          <div>
+            <h4 style="margin: 0; font-size: 1rem; color: var(--primary-color);">📅 ${dateFormatted}</h4>
+            ${readOnlyBadge}
+          </div>
+          <span class="badge-pill count-present" style="font-weight: 700;">✅ Submitted</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top: 12px; flex-wrap:wrap; gap:10px;">
+          <div>
+            <span style="font-size: 0.82rem; color: #64748b; display:block;">Amount Collected</span>
+            <span style="font-size: 1.6rem; font-weight: 700; color: #10b981; font-family:'Outfit', sans-serif;">₹${Number(entry.amount).toLocaleString('en-IN')}</span>
+          </div>
+          <div style="font-size: 0.88rem; color: #475569;">
+            <span>📍 Place: <strong>${this.escapeHtml(entry.place)}</strong></span>
+          </div>
+        </div>
+        <div class="pdc-modal-meta-list" style="margin-top: 12px; font-size: 0.8rem;">
+          <div>⏱️ <strong>Submission Time:</strong> ${createdStr}</div>
+          <div>🕒 <strong>Last Updated:</strong> ${updatedStr}</div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="pdc-date-detail-header">
+          <h4 style="margin: 0; font-size: 1rem; color: #64748b;">📅 ${dateFormatted}</h4>
+          <span class="badge-pill count-unmarked">⚪ No Entry</span>
+        </div>
+        <p class="text-muted mb-0" style="font-size: 0.88rem; margin-top: 8px;">No fund collection was recorded on this date.</p>
+      `;
+    }
+  },
+
+  /**
+   * Load Teacher/Admin PDC Fund Report
+   */
+  async loadTeacherPdcFundReport(date, isManualRefresh = false) {
+    const tableBody = document.getElementById('pdc-admin-table-tbody');
+    const refreshBtn = document.getElementById('pdc-admin-refresh-btn');
+    const datePicker = document.getElementById('pdc-admin-date-picker');
+
+    if (datePicker && date) {
+      datePicker.value = date;
+    }
+
+    if (refreshBtn) {
+      refreshBtn.disabled = true;
+      const icon = refreshBtn.querySelector('.refresh-icon');
+      if (icon) icon.style.display = 'inline-block';
+    }
+
+    if (!this.state.pdcAdminState.data && tableBody) {
+      tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Fetching latest fund collections...</td></tr>';
+    }
+
+    try {
+      const data = await api.getPdcFundDailyReport(date);
+      if (data && data.success) {
+        this.state.pdcAdminState.data = data;
+        this.state.pdcAdminState.selectedDate = data.date;
+
+        // Update Last Synced text
+        const syncTimeEl = document.getElementById('pdc-admin-last-sync-time');
+        if (syncTimeEl) {
+          const now = new Date();
+          syncTimeEl.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }
+
+        // Update Date Labels
+        const dateLabelEl = document.getElementById('pdc-table-date-label');
+        const subtextEl = document.getElementById('pdc-daily-date-subtext');
+        const displayDate = new Date(data.date);
+        const dateStr = !isNaN(displayDate) 
+          ? displayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : data.date;
+
+        if (dateLabelEl) dateLabelEl.textContent = dateStr;
+        if (subtextEl) subtextEl.textContent = dateStr;
+
+        // Render All-Time Banner
+        const overallTotalEl = document.getElementById('pdc-overall-total-display');
+        const overallContribEl = document.getElementById('pdc-overall-contributors-display');
+        const overall = data.overall_summary || { overall_total: 0, overall_contributing_students_count: 0 };
+
+        if (overallTotalEl) overallTotalEl.textContent = `₹${(overall.overall_total || 0).toLocaleString('en-IN')}`;
+        if (overallContribEl) overallContribEl.textContent = `${overall.overall_contributing_students_count || 0} Students`;
+
+        // Render 4 Daily Summary Cards
+        const daily = data.daily_summary || { total_collected: 0, contributed_count: 0, total_students: 0, not_contributed_count: 0 };
+        const dailyTotalEl = document.getElementById('pdc-daily-total-display');
+        const dailyContribEl = document.getElementById('pdc-daily-contributed-count');
+        const dailyTotalStudentsEl = document.getElementById('pdc-daily-total-students-count');
+        const dailyNotContribEl = document.getElementById('pdc-daily-not-contributed-count');
+
+        if (dailyTotalEl) dailyTotalEl.textContent = `₹${(daily.total_collected || 0).toLocaleString('en-IN')}`;
+        if (dailyContribEl) dailyContribEl.textContent = daily.contributed_count || 0;
+        if (dailyTotalStudentsEl) dailyTotalStudentsEl.textContent = daily.total_students || 0;
+        if (dailyNotContribEl) dailyNotContribEl.textContent = daily.not_contributed_count || 0;
+
+        // Render Leaderboard Table
+        this.renderTeacherPdcLeaderboardTable(data.students || []);
+
+        // Render Overall Student Rankings (all-time totals)
+        this.renderOverallStudentRankings(data.students || []);
+
+        if (isManualRefresh) {
+          this.showToast('Fund collection table refreshed!', 'success');
+        }
+      }
+    } catch (err) {
+      console.error('[PDC Fund Report Error]', err);
+      this.showToast(err.message || 'Failed to refresh table. Showing previously loaded records.', 'warning');
+      if (!this.state.pdcAdminState.data && tableBody) {
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-red py-4 font-bold">Failed to load: ${err.message}</td></tr>`;
+      }
+    } finally {
+      if (refreshBtn) {
+        refreshBtn.disabled = false;
+      }
+    }
+  },
+
+  renderTeacherPdcLeaderboardTable(students) {
+    const tableBody = document.getElementById('pdc-admin-table-tbody');
+    if (!tableBody) return;
+
+    if (!students || students.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No students found.</td></tr>';
+      return;
+    }
+
+    tableBody.innerHTML = '';
+    const isAmountVisible = this.state.pdcAdminState.columnVisibility.amount !== false;
+
+    students.forEach(s => {
+      const tr = document.createElement('tr');
+
+      // Rank badge
+      let rankHtml = '';
+      if (s.rank === 1) rankHtml = '<span class="rank-badge rank-1" title="Rank 1"><span class="rank-icon">🥇</span><span>#1</span></span>';
+      else if (s.rank === 2) rankHtml = '<span class="rank-badge rank-2" title="Rank 2"><span class="rank-icon">🥈</span><span>#2</span></span>';
+      else if (s.rank === 3) rankHtml = '<span class="rank-badge rank-3" title="Rank 3"><span class="rank-icon">🥉</span><span>#3</span></span>';
+      else if (s.rank === '-') rankHtml = '<span class="rank-badge rank-dash">-</span>';
+      else rankHtml = `<span class="rank-badge rank-regular">#${s.rank}</span>`;
+
+      // Status pill
+      const isSubmitted = s.status === 'Submitted';
+      const statusPill = isSubmitted
+        ? '<span class="badge-pill count-present" style="font-weight:600;">Submitted</span>'
+        : '<span class="badge-pill count-unmarked">Not Submitted</span>';
+
+      // Amount
+      let amountDisplay = '';
+      if (isAmountVisible) {
+        amountDisplay = isSubmitted ? `₹${Number(s.amount).toLocaleString('en-IN')}` : '₹0';
+      } else {
+        amountDisplay = '<span class="amount-masked">••••••</span>';
+      }
+
+      tr.innerHTML = `
+        <td class="col-rank text-center">${rankHtml}</td>
+        <td class="col-student-name">
+          <span class="student-clickable-name" data-student-id="${s.student_id}" data-name="${this.escapeHtml(s.name)}" data-roll="${s.roll_no}" data-amount="${s.amount}" data-place="${this.escapeHtml(s.place || '')}">
+            ${this.escapeHtml(s.name)}
+          </span>
+          <span class="text-muted" style="font-size:0.75rem; margin-left:4px;">(Roll ${s.roll_no})</span>
+        </td>
+        <td class="col-amount text-right col-pdc-amount" style="font-weight:700; color: ${isSubmitted ? '#10b981' : '#94a3b8'};">
+          ${amountDisplay}
+        </td>
+        <td class="col-place col-pdc-place" style="font-size: 0.88rem; color: #475569;">
+          ${this.escapeHtml(s.place || '-')}
+        </td>
+        <td class="col-status text-center col-pdc-status">
+          ${statusPill}
+        </td>
+      `;
+
+      // Attach click to open detail modal
+      const nameEl = tr.querySelector('.student-clickable-name');
+      if (nameEl) {
+        nameEl.addEventListener('click', () => {
+          this.openStudentPdcModal(
+            s.student_id,
+            s.name,
+            s.roll_no,
+            s.amount,
+            s.place,
+            s.created_at,
+            s.updated_at,
+            s.all_time_total
+          );
+        });
+      }
+
+      tableBody.appendChild(tr);
+    });
+
+    this.applyTeacherPdcColumnVisibility();
+  },
+
+  renderOverallStudentRankings(students) {
+    const tbody = document.getElementById('pdc-total-collected-tbody') || document.getElementById('pdc-overall-ranking-tbody');
+    if (!tbody) return;
+
+    if (!students || students.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-muted">No fund records found.</td></tr>';
+      return;
+    }
+
+    // Sort students strictly by all_time_total descending
+    const sorted = [...students].sort((a, b) => {
+      const amtA = Number(a.all_time_total) || 0;
+      const amtB = Number(b.all_time_total) || 0;
+      if (amtB !== amtA) return amtB - amtA;
+      return (Number(a.roll_no) || 0) - (Number(b.roll_no) || 0);
+    });
+
+    const isAmountVisible = this.state.pdcAdminState.columnVisibility.amount !== false;
+    let html = '';
+
+    sorted.forEach(s => {
+      const total = Number(s.all_time_total) || 0;
+      let totalDisplay = '';
+
+      if (isAmountVisible) {
+        totalDisplay = total > 0
+          ? `<span style="font-weight:700; color:#10b981; font-size:1rem;">₹${total.toLocaleString('en-IN')}</span>`
+          : '<span style="color:#94a3b8; font-weight:600;">₹0</span>';
+      } else {
+        totalDisplay = '<span class="amount-masked">••••••</span>';
+      }
+
+      html += `<tr>
+        <td class="col-student-name" style="padding: 12px 16px;">
+          <span class="student-clickable-name" data-student-id="${s.student_id}">
+            ${this.escapeHtml(s.name || 'Unknown')}
+          </span>
+          <span class="text-muted" style="font-size:0.75rem; margin-left:6px;">(Roll ${s.roll_no || '-'})</span>
+        </td>
+        <td class="text-right col-pdc-total-amount" style="padding: 12px 16px;">
+          ${totalDisplay}
+        </td>
+      </tr>`;
+    });
+
+    tbody.innerHTML = html;
+
+    // Attach click listeners to student names
+    tbody.querySelectorAll('.student-clickable-name').forEach(el => {
+      el.addEventListener('click', () => {
+        const studentId = el.getAttribute('data-student-id');
+        const student = sorted.find(s => s.student_id === studentId);
+        if (student) {
+          this.openStudentPdcModal(
+            student.student_id,
+            student.name,
+            student.roll_no,
+            student.amount,
+            student.place,
+            student.created_at,
+            student.updated_at,
+            student.all_time_total
+          );
+        }
+      });
+    });
+  },
+
+  applyTeacherPdcColumnVisibility() {
+    const vis = this.state.pdcAdminState.columnVisibility;
+
+    // 1. Amount
+    const toggleAmountBtn = document.getElementById('toggle-col-amount-btn');
+    const toggleAmountState = document.getElementById('toggle-col-amount-state');
+    const isAmountVisible = vis.amount !== false;
+
+    if (toggleAmountBtn) {
+      if (isAmountVisible) toggleAmountBtn.classList.add('active');
+      else toggleAmountBtn.classList.remove('active');
+    }
+    if (toggleAmountState) {
+      toggleAmountState.textContent = isAmountVisible ? 'Show' : 'Hide';
+    }
+
+    // Update table amount cells
+    const data = this.state.pdcAdminState.data;
+    if (data && data.students) {
+      const amountCells = document.querySelectorAll('#pdc-admin-table-tbody td.col-pdc-amount');
+      data.students.forEach((s, idx) => {
+        const cell = amountCells[idx];
+        if (cell) {
+          if (isAmountVisible) {
+            cell.innerHTML = s.status === 'Submitted' ? `₹${Number(s.amount).toLocaleString('en-IN')}` : '₹0';
+          } else {
+            cell.innerHTML = '<span class="amount-masked">••••••</span>';
+          }
+        }
+      });
+      // Also update total collected table
+      const totalTbody = document.getElementById('pdc-total-collected-tbody') || document.getElementById('pdc-overall-ranking-tbody');
+      if (totalTbody) {
+        this.renderOverallStudentRankings(data.students);
+      }
+    }
+
+    // 2. Place
+    const togglePlaceBtn = document.getElementById('toggle-col-place-btn');
+    const togglePlaceState = document.getElementById('toggle-col-place-state');
+    const isPlaceVisible = vis.place !== false;
+
+    if (togglePlaceBtn) {
+      if (isPlaceVisible) togglePlaceBtn.classList.add('active');
+      else togglePlaceBtn.classList.remove('active');
+    }
+    if (togglePlaceState) {
+      togglePlaceState.textContent = isPlaceVisible ? 'Show' : 'Hide';
+    }
+
+    document.querySelectorAll('#pdc-admin-table .col-pdc-place').forEach(el => {
+      el.style.display = isPlaceVisible ? '' : 'none';
+    });
+
+    // 3. Status
+    const toggleStatusBtn = document.getElementById('toggle-col-status-btn');
+    const toggleStatusState = document.getElementById('toggle-col-status-state');
+    const isStatusVisible = vis.status !== false;
+
+    if (toggleStatusBtn) {
+      if (isStatusVisible) toggleStatusBtn.classList.add('active');
+      else toggleStatusBtn.classList.remove('active');
+    }
+    if (toggleStatusState) {
+      toggleStatusState.textContent = isStatusVisible ? 'Show' : 'Hide';
+    }
+
+    document.querySelectorAll('#pdc-admin-table .col-pdc-status').forEach(el => {
+      el.style.display = isStatusVisible ? '' : 'none';
+    });
+  },
+
+  async openStudentPdcModal(studentId, name, rollNo, dayAmount, dayPlace, createdAt, updatedAt, allTimeTotal) {
+    const modal = document.getElementById('pdc-student-detail-modal');
+    if (!modal) return;
+
+    document.getElementById('pdc-modal-student-name').textContent = name || 'Student';
+    document.getElementById('pdc-modal-student-roll').textContent = `Roll No: ${rollNo || '-'}`;
+
+    const dayAmountEl = document.getElementById('pdc-modal-day-amount');
+    const dayPlaceEl = document.getElementById('pdc-modal-day-place');
+    if (dayAmountEl) dayAmountEl.textContent = `₹${(Number(dayAmount) || 0).toLocaleString('en-IN')}`;
+    if (dayPlaceEl) dayPlaceEl.textContent = `Place: ${dayPlace || '-'}`;
+
+    const allTimeEl = document.getElementById('pdc-modal-all-time');
+    if (allTimeEl) allTimeEl.textContent = `₹${(Number(allTimeTotal) || 0).toLocaleString('en-IN')}`;
+
+    const createdEl = document.getElementById('pdc-modal-created-at');
+    const updatedEl = document.getElementById('pdc-modal-updated-at');
+    if (createdEl) createdEl.textContent = createdAt ? this.formatIsoTimestamp(createdAt) : 'Not submitted today';
+    if (updatedEl) updatedEl.textContent = updatedAt ? this.formatIsoTimestamp(updatedAt) : '-';
+
+    const historyContainer = document.getElementById('pdc-modal-history-list');
+    if (historyContainer) {
+      historyContainer.innerHTML = '<p class="text-center py-3 text-muted">Loading collection history...</p>';
+    }
+
+    modal.classList.remove('hidden');
+
+    try {
+      const historyData = await api.getPdcFundStudentHistory(studentId);
+      if (historyData && historyData.success && historyContainer) {
+        const records = historyData.records || [];
+        if (records.length === 0) {
+          historyContainer.innerHTML = '<p class="text-center py-3 text-muted">No historical collections found.</p>';
+        } else {
+          historyContainer.innerHTML = '';
+          records.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'pdc-modal-history-item';
+            const displayDate = new Date(r.date);
+            const dateStr = !isNaN(displayDate) 
+              ? displayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : r.date;
+
+            item.innerHTML = `
+              <div>
+                <strong>${dateStr}</strong>
+                <span class="text-muted" style="font-size:0.8rem; margin-left:6px;">📍 ${this.escapeHtml(r.place || 'Campus')}</span>
+              </div>
+              <strong style="color:#10b981;">₹${Number(r.amount).toLocaleString('en-IN')}</strong>
+            `;
+            historyContainer.appendChild(item);
+          });
+        }
+      }
+    } catch (e) {
+      if (historyContainer) {
+        historyContainer.innerHTML = '<p class="text-center py-3 text-muted">History loaded from daily record.</p>';
+      }
+    }
+  },
+
+  /**
+   * Open custom themed confirmation popup for deleting an active PDC Fund entry
+   */
+  openDeletePdcConfirmModal(studentId, date) {
+    const modal = document.getElementById('pdc-delete-confirm-modal');
+    if (!modal) return;
+
+    const cancelBtn = document.getElementById('pdc-modal-cancel-delete');
+    const confirmBtn = document.getElementById('pdc-modal-confirm-delete');
+
+    // Clone buttons to strip any prior listeners
+    const newCancelBtn = cancelBtn.cloneNode(true);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      window.removeEventListener('keydown', handleKeyDown);
+      modal.removeEventListener('click', handleOverlayClick);
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') closeModal();
+    };
+
+    const handleOverlayClick = (e) => {
+      if (e.target === modal) closeModal();
+    };
+
+    newCancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', handleOverlayClick);
+    window.addEventListener('keydown', handleKeyDown);
+
+    newConfirmBtn.addEventListener('click', async () => {
+      newConfirmBtn.disabled = true;
+      newConfirmBtn.textContent = 'Deleting...';
+      newCancelBtn.disabled = true;
+
+      try {
+        const res = await api.deletePdcFundEntry({
+          student_id: studentId,
+          date: date
+        });
+
+        if (res && res.success) {
+          closeModal();
+          this.showToast('Fund entry deleted. You can now submit a replacement entry.', 'success');
+          await this.loadStudentPdcFundData(studentId);
+        } else {
+          this.showToast(res.message || res.error || 'Failed to delete fund entry.', 'error');
+          newConfirmBtn.disabled = false;
+          newConfirmBtn.innerHTML = '🗑️ Yes, Delete';
+          newCancelBtn.disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+        this.showToast(err.message || 'Error deleting entry.', 'error');
+        newConfirmBtn.disabled = false;
+        newConfirmBtn.innerHTML = '🗑️ Yes, Delete';
+        newCancelBtn.disabled = false;
+      }
+    });
+
+    modal.classList.remove('hidden');
   },
 
   /**

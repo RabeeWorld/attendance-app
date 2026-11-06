@@ -482,5 +482,135 @@ const api = {
         resolve({ success: false, error: e.message });
       }
     });
+  },
+
+  /* ============================================================================
+   * PDC FUND METHODS
+   * ============================================================================ */
+
+  /**
+   * 11. Fetch student's PDC Fund records and summary
+   */
+  async getPdcFundForStudent(studentId) {
+    if (!studentId) throw new Error('Student ID is required.');
+    
+    if (navigator.onLine) {
+      try {
+        const data = await this._get('getPdcFundForStudent', { student_id: studentId });
+        if (data && data.success) {
+          try {
+            localStorage.setItem(`slaq_pdc_${studentId}`, JSON.stringify(data));
+          } catch (e) {}
+          return data;
+        }
+      } catch (error) {
+        console.warn('Network fetch for student PDC Fund failed, attempting cache fallback:', error);
+      }
+    }
+
+    // Offline / Network fallback
+    try {
+      const cached = JSON.parse(localStorage.getItem(`slaq_pdc_${studentId}`) || 'null');
+      if (cached) {
+        return { ...cached, fromCache: true };
+      }
+    } catch (e) {}
+
+    return {
+      success: true,
+      student_id: studentId,
+      records: [],
+      summary: { total_amount: 0, today_amount: 0, days_contributed: 0 },
+      today_entry: null,
+      fromCache: true
+    };
+  },
+
+  /**
+   * 12. Save (Add or Update) student PDC Fund entry
+   */
+  async savePdcFundEntry(payload) {
+    const res = await this._post('savePdcFundEntry', payload);
+    if (res && res.success && payload.student_id) {
+      // Invalidate or update local cache
+      try {
+        const studentId = payload.student_id;
+        const cached = JSON.parse(localStorage.getItem(`slaq_pdc_${studentId}`) || 'null');
+        if (cached && res.record && res.summary) {
+          cached.summary = res.summary;
+          cached.today_entry = res.record;
+          const idx = (cached.records || []).findIndex(r => r.record_id === res.record.record_id);
+          if (idx >= 0) {
+            cached.records[idx] = res.record;
+          } else {
+            cached.records = [res.record, ...(cached.records || [])];
+          }
+          localStorage.setItem(`slaq_pdc_${studentId}`, JSON.stringify(cached));
+        }
+      } catch (e) {}
+    }
+    return res;
+  },
+
+  /**
+   * 13. Delete student PDC Fund entry for today
+   */
+  async deletePdcFundEntry(payload) {
+    const res = await this._post('deletePdcFundEntry', payload);
+    if (res && res.success && payload.student_id) {
+      try {
+        const studentId = payload.student_id;
+        const cached = JSON.parse(localStorage.getItem(`slaq_pdc_${studentId}`) || 'null');
+        if (cached && res.summary) {
+          cached.summary = res.summary;
+          cached.today_entry = null;
+          const targetRecId = `${payload.date || ''}_${studentId}`;
+          cached.records = (cached.records || []).filter(r => r.record_id !== targetRecId);
+          localStorage.setItem(`slaq_pdc_${studentId}`, JSON.stringify(cached));
+        }
+      } catch (e) {}
+    }
+    return res;
+  },
+
+  /**
+   * 14. Fetch daily PDC Fund collection report for teachers/admin
+   */
+  async getPdcFundDailyReport(date) {
+    const params = {};
+    if (date) params.date = date;
+
+    if (navigator.onLine) {
+      try {
+        const data = await this._get('getPdcFundDailyReport', params);
+        if (data && data.success) {
+          try {
+            localStorage.setItem(`slaq_pdc_report_${data.date}`, JSON.stringify(data));
+          } catch (e) {}
+          return data;
+        }
+      } catch (error) {
+        console.warn('Network fetch for PDC Fund report failed, checking cache:', error);
+      }
+    }
+
+    // Cache fallback
+    try {
+      const cacheKey = `slaq_pdc_report_${date || new Date().toISOString().split('T')[0]}`;
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cached) {
+        return { ...cached, fromCache: true };
+      }
+    } catch (e) {}
+
+    throw new Error('Unable to fetch PDC Fund report. Please check your internet connection.');
+  },
+
+  /**
+   * 15. Fetch student historical collection details for teacher modal
+   */
+  async getPdcFundStudentHistory(studentId) {
+    if (!studentId) throw new Error('Student ID is required.');
+    return this._get('getPdcFundStudentHistory', { student_id: studentId });
   }
 };

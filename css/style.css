@@ -2046,3 +2046,628 @@ tr.top-rank-row td {
 tr.bottom-rank-row td {
   background-color: rgba(239, 68, 68, 0.08) !important;
 }
+
+
+/* ==========================================================================
+   PDC FUND FEATURE STYLING
+   ========================================================================== */
+
+/* 1. Student View Sub-Navigation Pills */
+.student-view-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.student-tab-pill {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.student-tab-pill:hover {
+  color: var(--primary-color, #1e3a8a);
+  background: rgba(241, 245, 249, 0.6);
+}
+
+.student-tab-pill.active {
+  background: #1e3a8a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(30, 58, 138, 0.25);
+}
+
+/* 2. PDC Fund Today's Active Entry Card */
+.pdc-entry-container {
+  padding: 20px;
+}
+
+.pdc-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pdc-today-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 58, 138, 0.08);
+  color: #1e3a8a;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.pdc-input-with-symbol {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pdc-currency-symbol {
+  position: absolute;
+  left: 14px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.pdc-input-with-symbol input {
+  padding-left: 32px !important;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.pdc-active-card {
+  border-left: 4px solid #10b981;
+}
+
+.pdc-active-card .pdc-amount-hero {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #10b981;
+  margin: 6px 0;
+  font-family: 'Outfit', sans-serif;
+}
+
+.pdc-active-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 12px 0 16px 0;
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+.pdc-active-meta .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdc-active-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+/* 3. Calendar Modifications for PDC Fund */
+.mc-day.has-fund {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #065f46 !important;
+  font-weight: 700;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.mc-day.has-fund::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  background-color: #10b981;
+  border-radius: 50%;
+}
+
+.mc-day.mc-today {
+  outline: 2px solid #2563eb !important;
+  outline-offset: -2px;
+  font-weight: 800;
+}
+
+.mc-day.future-day {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+  background: rgba(241, 245, 249, 0.4);
+}
+
+.mc-day.future-day:hover {
+  background: rgba(241, 245, 249, 0.4) !important;
+  transform: none !important;
+}
+
+.pdc-date-detail-box {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.pdc-date-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 4. Teacher / Admin PDC Fund Panel Styles */
+.pdc-admin-controls-card {
+  padding: 18px;
+}
+
+.pdc-controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pdc-actions-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.pdc-last-updated-text {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.pdc-toggles-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.toggles-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.col-toggle-btn {
+  padding: 4px 10px !important;
+  font-size: 0.8rem !important;
+  border-radius: 6px !important;
+  cursor: pointer;
+}
+
+.col-toggle-btn:not(.active) {
+  opacity: 0.55;
+  background: transparent !important;
+}
+
+/* Overall All-Time Banner */
+.pdc-overall-banner {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%) !important;
+  color: #ffffff !important;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+}
+
+.pdc-overall-banner h3 {
+  color: #ffffff !important;
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin: 6px 0;
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.pdc-overall-banner p {
+  color: #94a3b8 !important;
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.pdc-overall-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pdc-overall-meta .meta-item {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(6px);
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.pdc-overall-meta .meta-label {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.pdc-overall-meta .meta-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Leaderboard Table & Ranks */
+.pdc-leaderboard-table th {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+th.col-rank, td.col-rank {
+  width: 85px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 10px;
+  min-width: 56px;
+  height: auto;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.rank-badge .rank-icon {
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.rank-badge.rank-1 {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.25);
+}
+
+.rank-badge.rank-2 {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(148, 163, 184, 0.2);
+}
+
+.rank-badge.rank-3 {
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #fdba74;
+  box-shadow: 0 1px 3px rgba(251, 146, 60, 0.2);
+}
+
+.rank-badge.rank-regular {
+  background: rgba(241, 245, 249, 0.8);
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.rank-badge.rank-dash {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  font-size: 1.1rem;
+}
+
+.student-clickable-name {
+  color: #1e3a8a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.student-clickable-name:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.rank-badge.rank-gold {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.25);
+}
+
+.rank-badge.rank-silver {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(148, 163, 184, 0.2);
+}
+
+.rank-badge.rank-bronze {
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #fdba74;
+  box-shadow: 0 1px 3px rgba(251, 146, 60, 0.2);
+}
+
+.rank-badge.rank-default {
+  background: rgba(241, 245, 249, 0.8);
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.rank-badge.rank-unranked {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  font-size: 1.1rem;
+}
+
+.amount-masked {
+  letter-spacing: 3px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+/* Modal Styling */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.modal-close-btn:hover {
+  color: #0f172a;
+}
+
+.pdc-modal-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modal-stat-box {
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdc-modal-meta-list {
+  font-size: 0.85rem;
+  color: #475569;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pdc-modal-history-container {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.pdc-modal-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.88rem;
+}
+
+.pdc-modal-history-item:last-child {
+  border-bottom: none;
+}
+
+
+/* PDC Fund Inner Sub-tabs */
+.pdc-inner-tabs {
+  background: rgba(241, 245, 249, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 24px;
+}
+
+.pdc-inner-tabs .tab-btn {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 8px 16px;
+}
+
+
+/* ==========================================================================
+   PDC DELETE CONFIRMATION MODAL (THEMED POPUP)
+   ========================================================================== */
+.pdc-confirm-modal-card {
+  max-width: 420px;
+  text-align: center;
+  padding: 32px 24px 28px;
+  border-radius: var(--radius-xl);
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 20px 35px -5px rgba(15, 23, 42, 0.25), 0 10px 10px -5px rgba(15, 23, 42, 0.1);
+  animation: pdcModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pdcModalPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.pdc-confirm-icon-box {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.pdc-confirm-icon-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.7rem;
+  border: 1.5px solid rgba(239, 68, 68, 0.25);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+.pdc-confirm-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+  font-family: 'Outfit', 'Inter', sans-serif;
+}
+
+.pdc-confirm-message {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}
+
+.pdc-confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+
+.pdc-confirm-actions .btn {
+  flex: 1;
+  font-weight: 600;
+  border-radius: 12px;
+  min-height: 44px;
+  font-size: 0.92rem;
+}
+
+.btn-danger-action {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff !important;
+  border: none;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-danger-action:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-danger-action:active {
+  transform: translateY(0);
+}
