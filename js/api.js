@@ -612,5 +612,12 @@ const api = {
   async getPdcFundStudentHistory(studentId) {
     if (!studentId) throw new Error('Student ID is required.');
     return this._get('getPdcFundStudentHistory', { student_id: studentId });
+  },
+
+  /**
+   * 16. Lock or unlock student fund entry (Teacher/Admin)
+   */
+  async togglePdcFundLock(payload) {
+    return this._post('togglePdcFundLock', payload);
   }
 };

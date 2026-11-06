@@ -701,6 +701,8 @@ const app = {
 
     // Column Toggles
     const toggleAmountBtn = document.getElementById('toggle-col-amount-btn');
+    const toggleGpayBtn = document.getElementById('toggle-col-gpay-btn');
+    const toggleExpenseBtn = document.getElementById('toggle-col-expense-btn');
     const togglePlaceBtn = document.getElementById('toggle-col-place-btn');
     const toggleStatusBtn = document.getElementById('toggle-col-status-btn');
 
@@ -708,6 +710,24 @@ const app = {
       toggleAmountBtn.addEventListener('click', () => {
         const current = this.state.pdcAdminState.columnVisibility.amount !== false;
         this.state.pdcAdminState.columnVisibility.amount = !current;
+        this.savePdcColumnPrefs();
+        this.applyTeacherPdcColumnVisibility();
+      });
+    }
+
+    if (toggleGpayBtn) {
+      toggleGpayBtn.addEventListener('click', () => {
+        const current = this.state.pdcAdminState.columnVisibility.gpay !== false;
+        this.state.pdcAdminState.columnVisibility.gpay = !current;
+        this.savePdcColumnPrefs();
+        this.applyTeacherPdcColumnVisibility();
+      });
+    }
+
+    if (toggleExpenseBtn) {
+      toggleExpenseBtn.addEventListener('click', () => {
+        const current = this.state.pdcAdminState.columnVisibility.expense !== false;
+        this.state.pdcAdminState.columnVisibility.expense = !current;
         this.savePdcColumnPrefs();
         this.applyTeacherPdcColumnVisibility();
       });
@@ -728,6 +748,105 @@ const app = {
         this.state.pdcAdminState.columnVisibility.status = !current;
         this.savePdcColumnPrefs();
         this.applyTeacherPdcColumnVisibility();
+      });
+    }
+
+    const toggleAllBtn = document.getElementById('toggle-col-all-btn');
+    if (toggleAllBtn) {
+      toggleAllBtn.addEventListener('click', () => {
+        const vis = this.state.pdcAdminState.columnVisibility;
+        const allVisible = vis.amount !== false && vis.gpay !== false && vis.expense !== false && vis.place !== false && vis.status !== false;
+        const targetState = !allVisible;
+        vis.amount = targetState;
+        vis.gpay = targetState;
+        vis.expense = targetState;
+        vis.place = targetState;
+        vis.status = targetState;
+        this.savePdcColumnPrefs();
+        this.applyTeacherPdcColumnVisibility();
+      });
+    }
+
+    // Teacher Add/Edit Modal Events
+    const teacherModal = document.getElementById('pdc-teacher-entry-modal');
+    const teacherModalCloseBtn = document.getElementById('pdc-teacher-modal-close-btn');
+    const teacherModalCancelBtn = document.getElementById('pdc-teacher-modal-cancel-btn');
+    const teacherCashInput = document.getElementById('pdc-teacher-cash-input');
+    const teacherGpayInput = document.getElementById('pdc-teacher-gpay-input');
+    const teacherLiveTotal = document.getElementById('pdc-teacher-live-total');
+    const teacherForm = document.getElementById('pdc-teacher-entry-form');
+
+    const closeTeacherModal = () => {
+      if (teacherModal) teacherModal.classList.add('hidden');
+    };
+
+    if (teacherModalCloseBtn) teacherModalCloseBtn.addEventListener('click', closeTeacherModal);
+    if (teacherModalCancelBtn) teacherModalCancelBtn.addEventListener('click', closeTeacherModal);
+    if (teacherModal) {
+      teacherModal.addEventListener('click', (e) => {
+        if (e.target === teacherModal) closeTeacherModal();
+      });
+    }
+
+    const updateTeacherLiveCalc = () => {
+      const c = Number(teacherCashInput ? teacherCashInput.value : 0) || 0;
+      const g = Number(teacherGpayInput ? teacherGpayInput.value : 0) || 0;
+      if (teacherLiveTotal) {
+        teacherLiveTotal.textContent = `₹${(c + g).toLocaleString('en-IN')}`;
+      }
+    };
+
+    if (teacherCashInput) teacherCashInput.addEventListener('input', updateTeacherLiveCalc);
+    if (teacherGpayInput) teacherGpayInput.addEventListener('input', updateTeacherLiveCalc);
+
+    if (teacherForm) {
+      teacherForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const studentId = document.getElementById('pdc-teacher-student-id').value;
+        const date = document.getElementById('pdc-teacher-date').value;
+        const cashAmount = Number(teacherCashInput.value) || 0;
+        const gpayAmount = Number(teacherGpayInput.value) || 0;
+        const expenseAmount = Number(document.getElementById('pdc-teacher-expense-input').value) || 0;
+        const place = document.getElementById('pdc-teacher-place-input').value.trim();
+        const isLocked = document.getElementById('pdc-teacher-lock-toggle').checked;
+        const saveBtn = document.getElementById('pdc-teacher-save-btn');
+
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Saving...';
+        }
+
+        try {
+          const res = await api.savePdcFundEntry({
+            student_id: studentId,
+            date: date,
+            amount: cashAmount,
+            gpay_amount: gpayAmount,
+            expense_amount: expenseAmount,
+            place: place || 'Campus',
+            is_locked: isLocked,
+            caller_role: 'TEACHER',
+            username: this.state.user ? this.state.user.username : 'Teacher'
+          });
+
+          if (res && res.success) {
+            this.showToast('Student fund entry saved successfully!', 'success');
+            closeTeacherModal();
+            const datePicker = document.getElementById('pdc-admin-date-picker');
+            const targetDate = datePicker ? datePicker.value : date;
+            await this.loadTeacherPdcFundReport(targetDate);
+          } else {
+            this.showToast(res.message || res.error || 'Failed to save entry.', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          this.showToast(err.message || 'Error saving entry.', 'error');
+        } finally {
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 Save Entry';
+          }
+        }
       });
     }
 
@@ -2650,6 +2769,9 @@ const app = {
     const todayDateObj = new Date();
     const formattedDate = todayDateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+    // Check if entry or slot is locked by teacher
+    const isLocked = todayEntry && (todayEntry.is_locked === true || String(todayEntry.is_locked).toUpperCase() === 'TRUE');
+
     if (!todayEntry) {
       // State A: No entry exists for today -> Show Add Form
       container.innerHTML = `
@@ -2725,6 +2847,51 @@ const app = {
           if (submitBtn) submitBtn.disabled = false;
         }
       });
+
+    } else if (isLocked) {
+      // State: Locked by Teacher -> View Only (No editing or deletion allowed)
+      const updatedTimeStr = todayEntry.updated_at ? this.formatIsoTimestamp(todayEntry.updated_at) : 'Today';
+      const createdTimeStr = todayEntry.created_at ? this.formatIsoTimestamp(todayEntry.created_at) : 'Today';
+      const totalCollected = Number(todayEntry.total_collected || (Number(todayEntry.amount) + (Number(todayEntry.gpay_amount) || 0))) || 0;
+      const cashAmt = Number(todayEntry.amount) || 0;
+      const gpayAmt = Number(todayEntry.gpay_amount) || 0;
+      const expenseAmt = Number(todayEntry.expense_amount) || 0;
+
+      container.innerHTML = `
+        <div class="pdc-active-card" style="border: 1.5px solid #fca5a5;">
+          <div class="pdc-entry-header">
+            <div>
+              <span class="badge-pill" style="background:#fee2e2; color:#dc2626; font-weight:700;">🔒 Locked by Teacher</span>
+              <h4 style="margin: 4px 0 0 0; color: #64748b; font-size: 0.85rem;">Date: ${formattedDate}</h4>
+            </div>
+            <span class="pdc-today-badge">🕒 Last Updated: ${updatedTimeStr}</span>
+          </div>
+
+          <div class="pdc-amount-hero">₹${totalCollected.toLocaleString('en-IN')}</div>
+          
+          <!-- Breakdown -->
+          <div class="pdc-subtotals-pills mb-3" style="justify-content: center;">
+            <span class="pill count-present" style="font-size: 0.82rem; padding: 4px 10px;">💵 Cash: <strong>₹${cashAmt.toLocaleString('en-IN')}</strong></span>
+            <span class="pill count-late" style="font-size: 0.82rem; padding: 4px 10px;">📱 GPay: <strong>₹${gpayAmt.toLocaleString('en-IN')}</strong></span>
+            ${expenseAmt > 0 ? `<span class="pill count-absent" style="font-size: 0.82rem; padding: 4px 10px;">📉 Expense: <strong>₹${expenseAmt.toLocaleString('en-IN')}</strong></span>` : ''}
+          </div>
+
+          <div class="pdc-active-meta">
+            <div class="meta-item">
+              <span>📍 Place:</span>
+              <strong>${this.escapeHtml(todayEntry.place || '-')}</strong>
+            </div>
+            <div class="meta-item">
+              <span>⏱️ Submitted At:</span>
+              <span>${createdTimeStr}</span>
+            </div>
+          </div>
+
+          <div class="alert alert-info mt-3" style="background: rgba(239, 246, 255, 0.9); border: 1px solid #bfdbfe; color: #1e40af; padding: 10px 14px; border-radius: 10px; font-size: 0.88rem; text-align: center;">
+            🔒 This entry has been verified and locked by your teacher. Modifications and deletion are disabled.
+          </div>
+        </div>
+      `;
 
     } else if (isEditing) {
       // State C: Editing existing entry
@@ -2817,6 +2984,10 @@ const app = {
       // State B: Active Entry View with Edit & Delete options
       const updatedTimeStr = todayEntry.updated_at ? this.formatIsoTimestamp(todayEntry.updated_at) : 'Today';
       const createdTimeStr = todayEntry.created_at ? this.formatIsoTimestamp(todayEntry.created_at) : 'Today';
+      const totalCollected = Number(todayEntry.total_collected || (Number(todayEntry.amount) + (Number(todayEntry.gpay_amount) || 0))) || 0;
+      const cashAmt = Number(todayEntry.amount) || 0;
+      const gpayAmt = Number(todayEntry.gpay_amount) || 0;
+      const expenseAmt = Number(todayEntry.expense_amount) || 0;
 
       container.innerHTML = `
         <div class="pdc-active-card">
@@ -2828,8 +2999,16 @@ const app = {
             <span class="pdc-today-badge">🕒 Last Updated: ${updatedTimeStr}</span>
           </div>
 
-          <div class="pdc-amount-hero">₹${Number(todayEntry.amount).toLocaleString('en-IN')}</div>
+          <div class="pdc-amount-hero">₹${totalCollected.toLocaleString('en-IN')}</div>
           
+          <!-- Breakdown if GPay or Expense exists -->
+          ${(gpayAmt > 0 || expenseAmt > 0) ? `
+          <div class="pdc-subtotals-pills mb-3" style="justify-content: center;">
+            <span class="pill count-present" style="font-size: 0.82rem; padding: 4px 10px;">💵 Cash: <strong>₹${cashAmt.toLocaleString('en-IN')}</strong></span>
+            <span class="pill count-late" style="font-size: 0.82rem; padding: 4px 10px;">📱 GPay: <strong>₹${gpayAmt.toLocaleString('en-IN')}</strong></span>
+            ${expenseAmt > 0 ? `<span class="pill count-absent" style="font-size: 0.82rem; padding: 4px 10px;">📉 Expense: <strong>₹${expenseAmt.toLocaleString('en-IN')}</strong></span>` : ''}
+          </div>` : ''}
+
           <div class="pdc-active-meta">
             <div class="meta-item">
               <span>📍 Place:</span>
@@ -3057,17 +3236,23 @@ const app = {
         if (overallTotalEl) overallTotalEl.textContent = `₹${(overall.overall_total || 0).toLocaleString('en-IN')}`;
         if (overallContribEl) overallContribEl.textContent = `${overall.overall_contributing_students_count || 0} Students`;
 
-        // Render 4 Daily Summary Cards
-        const daily = data.daily_summary || { total_collected: 0, contributed_count: 0, total_students: 0, not_contributed_count: 0 };
+        // Render 4 Daily Summary Cards & Subtotals
+        const daily = data.daily_summary || { total_collected: 0, total_cash_collected: 0, total_gpay_collected: 0, total_expense: 0, contributed_count: 0, total_students: 0, not_contributed_count: 0 };
         const dailyTotalEl = document.getElementById('pdc-daily-total-display');
         const dailyContribEl = document.getElementById('pdc-daily-contributed-count');
         const dailyTotalStudentsEl = document.getElementById('pdc-daily-total-students-count');
         const dailyNotContribEl = document.getElementById('pdc-daily-not-contributed-count');
+        const cashSubEl = document.getElementById('pdc-daily-cash-subtotal');
+        const gpaySubEl = document.getElementById('pdc-daily-gpay-subtotal');
+        const expSubEl = document.getElementById('pdc-daily-expense-subtotal');
 
         if (dailyTotalEl) dailyTotalEl.textContent = `₹${(daily.total_collected || 0).toLocaleString('en-IN')}`;
         if (dailyContribEl) dailyContribEl.textContent = daily.contributed_count || 0;
         if (dailyTotalStudentsEl) dailyTotalStudentsEl.textContent = daily.total_students || 0;
         if (dailyNotContribEl) dailyNotContribEl.textContent = daily.not_contributed_count || 0;
+        if (cashSubEl) cashSubEl.textContent = `₹${(daily.total_cash_collected || 0).toLocaleString('en-IN')}`;
+        if (gpaySubEl) gpaySubEl.textContent = `₹${(daily.total_gpay_collected || 0).toLocaleString('en-IN')}`;
+        if (expSubEl) expSubEl.textContent = `₹${(daily.total_expense || 0).toLocaleString('en-IN')}`;
 
         // Render Leaderboard Table
         this.renderTeacherPdcLeaderboardTable(data.students || []);
@@ -3083,7 +3268,7 @@ const app = {
       console.error('[PDC Fund Report Error]', err);
       this.showToast(err.message || 'Failed to refresh table. Showing previously loaded records.', 'warning');
       if (!this.state.pdcAdminState.data && tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-red py-4 font-bold">Failed to load: ${err.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-red py-4 font-bold">Failed to load: ${err.message}</td></tr>`;
       }
     } finally {
       if (refreshBtn) {
@@ -3097,23 +3282,26 @@ const app = {
     if (!tableBody) return;
 
     if (!students || students.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No students found.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No students found.</td></tr>';
       return;
     }
 
     tableBody.innerHTML = '';
     const isAmountVisible = this.state.pdcAdminState.columnVisibility.amount !== false;
+    const isGpayVisible = this.state.pdcAdminState.columnVisibility.gpay !== false;
+    const isExpenseVisible = this.state.pdcAdminState.columnVisibility.expense !== false;
+    const selectedDate = this.state.pdcAdminState.selectedDate || this.getLocalDateString();
 
     students.forEach(s => {
       const tr = document.createElement('tr');
 
       // Rank badge
       let rankHtml = '';
-      if (s.rank === 1) rankHtml = '<span class="rank-badge rank-1" title="Rank 1"><span class="rank-icon">🥇</span><span>#1</span></span>';
-      else if (s.rank === 2) rankHtml = '<span class="rank-badge rank-2" title="Rank 2"><span class="rank-icon">🥈</span><span>#2</span></span>';
-      else if (s.rank === 3) rankHtml = '<span class="rank-badge rank-3" title="Rank 3"><span class="rank-icon">🥉</span><span>#3</span></span>';
+      if (s.rank === 1) rankHtml = '<span class="rank-badge rank-1" title="Rank 1"><span class="rank-icon">🥇</span><span>1</span></span>';
+      else if (s.rank === 2) rankHtml = '<span class="rank-badge rank-2" title="Rank 2"><span class="rank-icon">🥈</span><span>2</span></span>';
+      else if (s.rank === 3) rankHtml = '<span class="rank-badge rank-3" title="Rank 3"><span class="rank-icon">🥉</span><span>3</span></span>';
       else if (s.rank === '-') rankHtml = '<span class="rank-badge rank-dash">-</span>';
-      else rankHtml = `<span class="rank-badge rank-regular">#${s.rank}</span>`;
+      else rankHtml = `<span class="rank-badge rank-regular">${s.rank}</span>`;
 
       // Status pill
       const isSubmitted = s.status === 'Submitted';
@@ -3121,30 +3309,85 @@ const app = {
         ? '<span class="badge-pill count-present" style="font-weight:600;">Submitted</span>'
         : '<span class="badge-pill count-unmarked">Not Submitted</span>';
 
-      // Amount
+      // Calculated Total Collected (Cash + GPay)
+      const cashAmt = Number(s.amount) || 0;
+      const gpayAmt = Number(s.gpay_amount) || 0;
+      const expenseAmt = Number(s.expense_amount) || 0;
+      const totalCollected = Number(s.total_collected !== undefined ? s.total_collected : (cashAmt + gpayAmt)) || 0;
+      const isLocked = Boolean(s.is_locked);
+
+      // Amount Display
       let amountDisplay = '';
       if (isAmountVisible) {
-        amountDisplay = isSubmitted ? `₹${Number(s.amount).toLocaleString('en-IN')}` : '₹0';
+        amountDisplay = isSubmitted ? `₹${totalCollected.toLocaleString('en-IN')}` : '₹0';
       } else {
         amountDisplay = '<span class="amount-masked">••••••</span>';
+      }
+
+      // GPay Display
+      let gpayDisplay = '';
+      if (isGpayVisible) {
+        gpayDisplay = gpayAmt > 0 ? `₹${gpayAmt.toLocaleString('en-IN')}` : '₹0';
+      } else {
+        gpayDisplay = '<span class="amount-masked">••••••</span>';
+      }
+
+      // Expense Display
+      let expenseDisplay = '';
+      if (isExpenseVisible) {
+        expenseDisplay = expenseAmt > 0 ? `₹${expenseAmt.toLocaleString('en-IN')}` : '₹0';
+      } else {
+        expenseDisplay = '<span class="amount-masked">••••••</span>';
       }
 
       tr.innerHTML = `
         <td class="col-rank text-center">${rankHtml}</td>
         <td class="col-student-name">
-          <span class="student-clickable-name" data-student-id="${s.student_id}" data-name="${this.escapeHtml(s.name)}" data-roll="${s.roll_no}" data-amount="${s.amount}" data-place="${this.escapeHtml(s.place || '')}">
-            ${this.escapeHtml(s.name)}
-          </span>
-          <span class="text-muted" style="font-size:0.75rem; margin-left:4px;">(Roll ${s.roll_no})</span>
+          <div class="student-name-line">
+            <span class="student-clickable-name" data-student-id="${s.student_id}">
+              ${this.escapeHtml(s.name)}
+            </span>
+            <span class="text-muted pdc-student-roll" style="font-size:0.75rem; margin-left:4px;">(Roll ${s.roll_no})</span>
+          </div>
+          <div class="pdc-mobile-meta">
+            ${gpayAmt > 0 ? `<span class="pdc-meta-pill pdc-meta-gpay" style="${isGpayVisible ? '' : 'display:none;'}">📱 GPay ₹${gpayAmt.toLocaleString('en-IN')}</span>` : ''}
+            ${expenseAmt > 0 ? `<span class="pdc-meta-pill pdc-meta-expense" style="${isExpenseVisible ? '' : 'display:none;'}">📉 Exp ₹${expenseAmt.toLocaleString('en-IN')}</span>` : ''}
+            ${(s.place && s.place !== '-') ? `<span class="pdc-meta-pill pdc-meta-place" style="${this.state.pdcAdminState.columnVisibility.place !== false ? '' : 'display:none;'}">📍 ${this.escapeHtml(s.place)}</span>` : ''}
+          </div>
         </td>
         <td class="col-amount text-right col-pdc-amount" style="font-weight:700; color: ${isSubmitted ? '#10b981' : '#94a3b8'};">
-          ${amountDisplay}
+          <div class="pdc-amount-val">${amountDisplay}</div>
+          <div class="pdc-mobile-status" style="${this.state.pdcAdminState.columnVisibility.status !== false ? '' : 'display:none;'}">${statusPill}</div>
+        </td>
+        <td class="col-gpay text-right col-pdc-gpay" style="font-size:0.88rem; color: ${gpayAmt > 0 ? '#3b82f6' : '#94a3b8'}; font-weight: 600;">
+          ${gpayDisplay}
+        </td>
+        <td class="col-expense text-right col-pdc-expense" style="font-size:0.88rem; color: ${expenseAmt > 0 ? '#ef4444' : '#94a3b8'}; font-weight: 600;">
+          ${expenseDisplay}
         </td>
         <td class="col-place col-pdc-place" style="font-size: 0.88rem; color: #475569;">
           ${this.escapeHtml(s.place || '-')}
         </td>
         <td class="col-status text-center col-pdc-status">
           ${statusPill}
+        </td>
+        <td class="col-lock text-center col-pdc-lock">
+          <button type="button" class="pdc-lock-btn ${isLocked ? 'is-locked' : 'is-unlocked'}" data-student-id="${s.student_id}" data-locked="${isLocked}" title="${isLocked ? 'Click to Unlock this entry' : 'Click to Lock this entry'}">
+            ${isLocked ? '🔒 Locked' : '🔓 Unlocked'}
+          </button>
+        </td>
+        <td class="col-actions text-center col-pdc-actions">
+          <button type="button" class="pdc-row-action-btn desktop-only-btn ${isSubmitted ? 'edit-btn' : 'add-btn'}" data-student-id="${s.student_id}" title="${isSubmitted ? 'Edit Fund Entry' : 'Add Fund Entry'}">
+            ${isSubmitted ? '✏️ Edit' : '➕ Add'}
+          </button>
+          <div class="pdc-mobile-actions">
+            <button type="button" class="pdc-mobile-icon-btn lock-action-btn ${isLocked ? 'is-locked' : 'is-unlocked'}" data-student-id="${s.student_id}" data-locked="${isLocked}" title="${isLocked ? 'Click to Unlock this entry' : 'Click to Lock this entry'}">
+              ${isLocked ? '🔒' : '🔓'}
+            </button>
+            <button type="button" class="pdc-mobile-icon-btn edit-action-btn ${isSubmitted ? 'edit-btn' : 'add-btn'}" data-student-id="${s.student_id}" title="${isSubmitted ? 'Edit Fund Entry' : 'Add Fund Entry'}">
+              ${isSubmitted ? '✏️' : '➕'}
+            </button>
+          </div>
         </td>
       `;
 
@@ -3156,7 +3399,7 @@ const app = {
             s.student_id,
             s.name,
             s.roll_no,
-            s.amount,
+            totalCollected,
             s.place,
             s.created_at,
             s.updated_at,
@@ -3165,10 +3408,86 @@ const app = {
         });
       }
 
+      // Attach lock button listeners (Desktop & Mobile)
+      tr.querySelectorAll('.pdc-lock-btn, .lock-action-btn').forEach(lockBtn => {
+        lockBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          lockBtn.disabled = true;
+          const currentlyLocked = lockBtn.getAttribute('data-locked') === 'true';
+          const newLock = !currentlyLocked;
+          
+          try {
+            const res = await api.togglePdcFundLock({
+              student_id: s.student_id,
+              date: selectedDate,
+              locked: newLock,
+              username: this.state.user ? this.state.user.username : 'Teacher'
+            });
+
+            if (res && res.success) {
+              this.showToast(newLock ? `Locked entry for ${s.name}.` : `Unlocked entry for ${s.name}.`, 'success');
+              await this.loadTeacherPdcFundReport(selectedDate);
+            } else {
+              this.showToast(res.message || 'Failed to update lock.', 'error');
+              lockBtn.disabled = false;
+            }
+          } catch (err) {
+            console.error(err);
+            this.showToast(err.message || 'Error updating lock status.', 'error');
+            lockBtn.disabled = false;
+          }
+        });
+      });
+
+      // Attach action edit/add button listeners (Desktop & Mobile)
+      tr.querySelectorAll('.pdc-row-action-btn, .edit-action-btn').forEach(actionBtn => {
+        actionBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openTeacherPdcEntryModal(
+            s.student_id,
+            s.name,
+            s.roll_no,
+            selectedDate,
+            cashAmt,
+            gpayAmt,
+            expenseAmt,
+            s.place,
+            isLocked
+          );
+        });
+      });
+
       tableBody.appendChild(tr);
     });
 
     this.applyTeacherPdcColumnVisibility();
+  },
+
+  openTeacherPdcEntryModal(studentId, name, rollNo, date, cash, gpay, expense, place, isLocked) {
+    const modal = document.getElementById('pdc-teacher-entry-modal');
+    if (!modal) return;
+
+    document.getElementById('pdc-teacher-modal-title').textContent = (cash > 0 || gpay > 0 || expense > 0) ? `✏️ Edit Fund: ${name}` : `➕ Add Fund: ${name}`;
+    document.getElementById('pdc-teacher-modal-subtitle').textContent = `Roll No: ${rollNo || '-'} · Date: ${date}`;
+    document.getElementById('pdc-teacher-student-id').value = studentId;
+    document.getElementById('pdc-teacher-date').value = date;
+
+    const cashInput = document.getElementById('pdc-teacher-cash-input');
+    const gpayInput = document.getElementById('pdc-teacher-gpay-input');
+    const expInput = document.getElementById('pdc-teacher-expense-input');
+    const placeInput = document.getElementById('pdc-teacher-place-input');
+    const lockToggle = document.getElementById('pdc-teacher-lock-toggle');
+    const liveTotal = document.getElementById('pdc-teacher-live-total');
+
+    if (cashInput) cashInput.value = cash ? cash : '';
+    if (gpayInput) gpayInput.value = gpay ? gpay : '';
+    if (expInput) expInput.value = expense ? expense : '';
+    if (placeInput) placeInput.value = (place && place !== '-') ? place : '';
+    if (lockToggle) lockToggle.checked = Boolean(isLocked);
+    if (liveTotal) liveTotal.textContent = `₹${((cash || 0) + (gpay || 0)).toLocaleString('en-IN')}`;
+
+    modal.classList.remove('hidden');
+    if (cashInput) cashInput.focus();
   },
 
   renderOverallStudentRankings(students) {
@@ -3208,7 +3527,7 @@ const app = {
           <span class="student-clickable-name" data-student-id="${s.student_id}">
             ${this.escapeHtml(s.name || 'Unknown')}
           </span>
-          <span class="text-muted" style="font-size:0.75rem; margin-left:6px;">(Roll ${s.roll_no || '-'})</span>
+          <span class="text-muted pdc-student-roll" style="font-size:0.75rem; margin-left:6px;">(Roll ${s.roll_no || '-'})</span>
         </td>
         <td class="text-right col-pdc-total-amount" style="padding: 12px 16px;">
           ${totalDisplay}
@@ -3241,6 +3560,7 @@ const app = {
 
   applyTeacherPdcColumnVisibility() {
     const vis = this.state.pdcAdminState.columnVisibility;
+    const data = this.state.pdcAdminState.data;
 
     // 1. Amount
     const toggleAmountBtn = document.getElementById('toggle-col-amount-btn');
@@ -3255,17 +3575,17 @@ const app = {
       toggleAmountState.textContent = isAmountVisible ? 'Show' : 'Hide';
     }
 
-    // Update table amount cells
-    const data = this.state.pdcAdminState.data;
     if (data && data.students) {
+      const amountValEls = document.querySelectorAll('#pdc-admin-table-tbody td.col-pdc-amount .pdc-amount-val');
       const amountCells = document.querySelectorAll('#pdc-admin-table-tbody td.col-pdc-amount');
       data.students.forEach((s, idx) => {
-        const cell = amountCells[idx];
-        if (cell) {
+        const targetEl = amountValEls[idx] || amountCells[idx];
+        if (targetEl) {
+          const totalCol = Number(s.total_collected !== undefined ? s.total_collected : ((Number(s.amount) || 0) + (Number(s.gpay_amount) || 0))) || 0;
           if (isAmountVisible) {
-            cell.innerHTML = s.status === 'Submitted' ? `₹${Number(s.amount).toLocaleString('en-IN')}` : '₹0';
+            targetEl.innerHTML = s.status === 'Submitted' ? `₹${totalCol.toLocaleString('en-IN')}` : '₹0';
           } else {
-            cell.innerHTML = '<span class="amount-masked">••••••</span>';
+            targetEl.innerHTML = '<span class="amount-masked">••••••</span>';
           }
         }
       });
@@ -3276,7 +3596,53 @@ const app = {
       }
     }
 
-    // 2. Place
+    // 2. GPay
+    const toggleGpayBtn = document.getElementById('toggle-col-gpay-btn');
+    const toggleGpayState = document.getElementById('toggle-col-gpay-state');
+    const isGpayVisible = vis.gpay !== false;
+
+    if (toggleGpayBtn) {
+      if (isGpayVisible) toggleGpayBtn.classList.add('active');
+      else toggleGpayBtn.classList.remove('active');
+    }
+    if (toggleGpayState) {
+      toggleGpayState.textContent = isGpayVisible ? 'Show' : 'Hide';
+    }
+
+    document.querySelectorAll('#pdc-admin-table .col-pdc-gpay-header').forEach(el => {
+      el.style.display = isGpayVisible ? '' : 'none';
+    });
+    document.querySelectorAll('#pdc-admin-table-tbody td.col-pdc-gpay').forEach(el => {
+      el.style.display = isGpayVisible ? '' : 'none';
+    });
+    document.querySelectorAll('#pdc-admin-table-tbody .pdc-meta-gpay').forEach(el => {
+      el.style.display = isGpayVisible ? '' : 'none';
+    });
+
+    // 3. Expense
+    const toggleExpenseBtn = document.getElementById('toggle-col-expense-btn');
+    const toggleExpenseState = document.getElementById('toggle-col-expense-state');
+    const isExpenseVisible = vis.expense !== false;
+
+    if (toggleExpenseBtn) {
+      if (isExpenseVisible) toggleExpenseBtn.classList.add('active');
+      else toggleExpenseBtn.classList.remove('active');
+    }
+    if (toggleExpenseState) {
+      toggleExpenseState.textContent = isExpenseVisible ? 'Show' : 'Hide';
+    }
+
+    document.querySelectorAll('#pdc-admin-table .col-pdc-expense-header').forEach(el => {
+      el.style.display = isExpenseVisible ? '' : 'none';
+    });
+    document.querySelectorAll('#pdc-admin-table-tbody td.col-pdc-expense').forEach(el => {
+      el.style.display = isExpenseVisible ? '' : 'none';
+    });
+    document.querySelectorAll('#pdc-admin-table-tbody .pdc-meta-expense').forEach(el => {
+      el.style.display = isExpenseVisible ? '' : 'none';
+    });
+
+    // 4. Place
     const togglePlaceBtn = document.getElementById('toggle-col-place-btn');
     const togglePlaceState = document.getElementById('toggle-col-place-state');
     const isPlaceVisible = vis.place !== false;
@@ -3292,8 +3658,11 @@ const app = {
     document.querySelectorAll('#pdc-admin-table .col-pdc-place').forEach(el => {
       el.style.display = isPlaceVisible ? '' : 'none';
     });
+    document.querySelectorAll('#pdc-admin-table-tbody .pdc-meta-place').forEach(el => {
+      el.style.display = isPlaceVisible ? '' : 'none';
+    });
 
-    // 3. Status
+    // 5. Status
     const toggleStatusBtn = document.getElementById('toggle-col-status-btn');
     const toggleStatusState = document.getElementById('toggle-col-status-state');
     const isStatusVisible = vis.status !== false;
@@ -3307,6 +3676,9 @@ const app = {
     }
 
     document.querySelectorAll('#pdc-admin-table .col-pdc-status').forEach(el => {
+      el.style.display = isStatusVisible ? '' : 'none';
+    });
+    document.querySelectorAll('#pdc-admin-table-tbody .pdc-mobile-status').forEach(el => {
       el.style.display = isStatusVisible ? '' : 'none';
     });
   },
@@ -3354,12 +3726,24 @@ const app = {
               ? displayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
               : r.date;
 
+            const totalCol = Number(r.total_collected !== undefined ? r.total_collected : ((Number(r.amount) || 0) + (Number(r.gpay_amount) || 0))) || 0;
+            const gpay = Number(r.gpay_amount) || 0;
+            const exp = Number(r.expense_amount) || 0;
+
+            let breakdownHtml = '';
+            if (gpay > 0 || exp > 0) {
+              breakdownHtml = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Cash: ₹${(Number(r.amount) || 0).toLocaleString('en-IN')}${gpay > 0 ? ` · GPay: ₹${gpay.toLocaleString('en-IN')}` : ''}${exp > 0 ? ` · Exp: ₹${exp.toLocaleString('en-IN')}` : ''}</div>`;
+            }
+
             item.innerHTML = `
               <div>
-                <strong>${dateStr}</strong>
-                <span class="text-muted" style="font-size:0.8rem; margin-left:6px;">📍 ${this.escapeHtml(r.place || 'Campus')}</span>
+                <div>
+                  <strong>${dateStr}</strong> ${r.is_locked ? '<span style="color:#dc2626; font-size:0.75rem;">🔒</span>' : ''}
+                  <span class="text-muted" style="font-size:0.8rem; margin-left:6px;">📍 ${this.escapeHtml(r.place || 'Campus')}</span>
+                </div>
+                ${breakdownHtml}
               </div>
-              <strong style="color:#10b981;">₹${Number(r.amount).toLocaleString('en-IN')}</strong>
+              <strong style="color:#10b981; font-size: 0.95rem;">₹${totalCol.toLocaleString('en-IN')}</strong>
             `;
             historyContainer.appendChild(item);
           });

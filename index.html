@@ -665,11 +665,20 @@
               <button type="button" id="toggle-col-amount-btn" class="btn outline-btn btn-xs col-toggle-btn active" data-col="amount">
                 👁️ Amount: <strong id="toggle-col-amount-state">Show</strong>
               </button>
+              <button type="button" id="toggle-col-gpay-btn" class="btn outline-btn btn-xs col-toggle-btn active" data-col="gpay">
+                👁️ GPay: <strong id="toggle-col-gpay-state">Show</strong>
+              </button>
+              <button type="button" id="toggle-col-expense-btn" class="btn outline-btn btn-xs col-toggle-btn active" data-col="expense">
+                👁️ Expense: <strong id="toggle-col-expense-state">Show</strong>
+              </button>
               <button type="button" id="toggle-col-place-btn" class="btn outline-btn btn-xs col-toggle-btn active" data-col="place">
                 👁️ Place: <strong id="toggle-col-place-state">Show</strong>
               </button>
               <button type="button" id="toggle-col-status-btn" class="btn outline-btn btn-xs col-toggle-btn active" data-col="status">
                 👁️ Status: <strong id="toggle-col-status-state">Show</strong>
+              </button>
+              <button type="button" id="toggle-col-all-btn" class="btn outline-btn btn-xs col-toggle-btn" style="background:#f8fafc; color:#334155; border-color:#cbd5e1;" title="Hide or show all fields together">
+                👁️ Toggle All
               </button>
             </div>
           </div>
@@ -679,7 +688,12 @@
             <div class="stat-card glass-card">
               <span class="stat-label">Total Amount Collected</span>
               <span id="pdc-daily-total-display" class="stat-value highlight-blue">₹0</span>
-              <span class="stat-unit" id="pdc-daily-date-subtext">Selected date</span>
+              <span class="stat-unit" id="pdc-daily-date-subtext">Cash + GPay</span>
+              <div class="pdc-subtotals-pills mt-2">
+                <span class="pill count-present" style="font-size:0.72rem; padding: 2px 7px;">💵 Cash: <strong id="pdc-daily-cash-subtotal">₹0</strong></span>
+                <span class="pill count-late" style="font-size:0.72rem; padding: 2px 7px;">📱 GPay: <strong id="pdc-daily-gpay-subtotal">₹0</strong></span>
+                <span class="pill count-absent" style="font-size:0.72rem; padding: 2px 7px;">📉 Expense: <strong id="pdc-daily-expense-subtotal">₹0</strong></span>
+              </div>
             </div>
             <div class="stat-card glass-card">
               <span class="stat-label">Students Contributed</span>
@@ -703,7 +717,7 @@
             <div class="daily-table-header-row mb-3">
               <div>
                 <h3 class="mb-0">Daily Fund Leaderboard (<span id="pdc-table-date-label">Today</span>)</h3>
-                <p class="text-muted" style="font-size: 0.85rem; margin-top: 3px;">Ranked in descending order of collection. Click any student row to inspect detailed records.</p>
+                <p class="text-muted" style="font-size: 0.85rem; margin-top: 3px;">Ranked by Amount Collected (Cash + GPay). Click student name for full history.</p>
               </div>
             </div>
 
@@ -711,15 +725,28 @@
               <table class="report-table pdc-leaderboard-table" id="pdc-admin-table">
                 <thead>
                   <tr>
-                    <th class="col-rank text-center">Rank</th>
-                    <th class="col-student-name">Student Name</th>
-                    <th class="col-amount text-right col-pdc-amount-header">Amount Collected</th>
+                    <th class="col-rank text-center">
+                      <span class="col-hdr-full">Rank</span>
+                      <span class="col-hdr-mobile">Rank</span>
+                    </th>
+                    <th class="col-student-name">
+                      <span class="col-hdr-full">Student Name</span>
+                      <span class="col-hdr-mobile">Name</span>
+                    </th>
+                    <th class="col-amount text-right col-pdc-amount-header" title="Cash + GPay">
+                      <span class="col-hdr-full">Amount Collected</span>
+                      <span class="col-hdr-mobile">Amount</span>
+                    </th>
+                    <th class="col-gpay text-right col-pdc-gpay-header">GPay Fund</th>
+                    <th class="col-expense text-right col-pdc-expense-header">Total Expense</th>
                     <th class="col-place col-pdc-place">Place</th>
-                    <th class="col-status text-center col-pdc-status">Collection Status</th>
+                    <th class="col-status text-center col-pdc-status">Status</th>
+                    <th class="col-lock text-center col-pdc-lock-header">Lock</th>
+                    <th class="col-actions text-center col-pdc-actions-header">Action</th>
                   </tr>
                 </thead>
                 <tbody id="pdc-admin-table-tbody">
-                  <tr><td colspan="5" class="text-center py-4 text-muted">Loading collection records...</td></tr>
+                  <tr><td colspan="9" class="text-center py-4 text-muted">Loading collection records...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -757,8 +784,14 @@
               <table class="report-table" id="pdc-total-collected-table">
                 <thead>
                   <tr>
-                    <th class="col-student-name">Student Name</th>
-                    <th class="col-amount text-right col-pdc-total-header">Amount Collected</th>
+                    <th class="col-student-name">
+                      <span class="col-hdr-full">Student Name</span>
+                      <span class="col-hdr-mobile">Name</span>
+                    </th>
+                    <th class="col-amount text-right col-pdc-total-header">
+                      <span class="col-hdr-full">Amount Collected</span>
+                      <span class="col-hdr-mobile">Amount</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody id="pdc-total-collected-tbody">
@@ -834,7 +867,81 @@
     </div>
   </div>
 
-<div id="toast-container" class="toast-container"></div>
+  <!-- Teacher / Admin Add or Edit Student Fund Modal -->
+  <div id="pdc-teacher-entry-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pdc-teacher-modal-title">
+    <div class="modal-card glass-card pdc-teacher-modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="pdc-teacher-modal-title" style="margin: 0; font-size: 1.25rem;">Edit Fund Entry</h3>
+          <span id="pdc-teacher-modal-subtitle" class="badge-pill" style="margin-top: 4px; display: inline-block;">Student Info</span>
+        </div>
+        <button type="button" id="pdc-teacher-modal-close-btn" class="modal-close-btn" aria-label="Close Modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="pdc-teacher-entry-form">
+          <input type="hidden" id="pdc-teacher-student-id">
+          <input type="hidden" id="pdc-teacher-date">
+
+          <div class="form-group mb-3">
+            <label for="pdc-teacher-cash-input">💵 Cash Amount Collected (₹)</label>
+            <div class="pdc-input-with-symbol">
+              <span class="pdc-currency-symbol">₹</span>
+              <input type="number" id="pdc-teacher-cash-input" class="form-control" placeholder="0" min="0" step="any">
+            </div>
+          </div>
+
+          <div class="form-group mb-3">
+            <label for="pdc-teacher-gpay-input">📱 GPay / Online Fund (₹)</label>
+            <div class="pdc-input-with-symbol">
+              <span class="pdc-currency-symbol">₹</span>
+              <input type="number" id="pdc-teacher-gpay-input" class="form-control" placeholder="0" min="0" step="any">
+            </div>
+          </div>
+
+          <!-- Live Total Calculation Preview -->
+          <div class="pdc-live-calc-box mb-3">
+            <span class="stat-label">Total Amount Collected (Cash + GPay):</span>
+            <strong id="pdc-teacher-live-total" class="text-green" style="font-size: 1.15rem;">₹0</strong>
+          </div>
+
+          <div class="form-group mb-3">
+            <label for="pdc-teacher-expense-input">📉 Total Expense (₹)</label>
+            <div class="pdc-input-with-symbol">
+              <span class="pdc-currency-symbol">₹</span>
+              <input type="number" id="pdc-teacher-expense-input" class="form-control" placeholder="0" min="0" step="any">
+            </div>
+          </div>
+
+          <div class="form-group mb-3">
+            <label for="pdc-teacher-place-input">📍 Collection Place / Note</label>
+            <input type="text" id="pdc-teacher-place-input" class="form-control" placeholder="e.g. Kozhikode Town / Main Gate">
+          </div>
+
+          <div class="form-group mb-4" style="background: rgba(241, 245, 249, 0.7); padding: 12px 14px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <strong style="display: block; font-size: 0.95rem; color: #1e293b;">🔒 Lock Entry</strong>
+              <small class="text-muted" style="display: block; font-size: 0.8rem;">Prevent student from editing or deleting this record</small>
+            </div>
+            <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px; margin-bottom: 0;">
+              <input type="checkbox" id="pdc-teacher-lock-toggle" style="opacity: 0; width: 0; height: 0;">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="pdc-active-actions">
+            <button type="submit" id="pdc-teacher-save-btn" class="btn primary-btn btn-md">
+              💾 Save Entry
+            </button>
+            <button type="button" id="pdc-teacher-modal-cancel-btn" class="btn secondary-btn btn-md">
+              ✖ Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
 
   <!-- Scripts loaded sequentially -->
   <script src="js/config.js"></script>
