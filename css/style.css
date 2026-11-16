@@ -2314,28 +2314,46 @@ tr.bottom-rank-row td {
   gap: 16px;
 }
 
+.pdc-overall-meta {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .pdc-overall-meta .meta-item {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(6px);
-  padding: 12px 20px;
+  padding: 10px 18px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  min-width: 135px;
 }
 
 .pdc-overall-meta .meta-label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: #94a3b8;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   font-weight: 600;
+  margin-bottom: 3px;
 }
 
 .pdc-overall-meta .meta-value {
   font-size: 1.25rem;
   font-weight: 700;
   color: #ffffff;
+}
+
+.pdc-overall-meta .meta-value.text-blue {
+  color: #60a5fa !important;
+}
+
+.pdc-overall-meta .meta-value.text-red {
+  color: #f87171 !important;
 }
 
 /* Leaderboard Table & Ranks */
@@ -2925,6 +2943,20 @@ th.col-rank, td.col-rank {
 
 /* 2. Mobile 4-Column Consolidated Table (Screens <= 768px) */
 @media (max-width: 768px) {
+  .pdc-overall-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .pdc-overall-meta {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .pdc-overall-meta .meta-item:last-child {
+    grid-column: span 2;
+  }
   /* Toggle Responsive Header Labels on Mobile */
   .col-hdr-mobile {
     display: inline !important;

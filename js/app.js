@@ -3230,10 +3230,14 @@ const app = {
 
         // Render All-Time Banner
         const overallTotalEl = document.getElementById('pdc-overall-total-display');
+        const overallGpayEl = document.getElementById('pdc-overall-gpay-display');
+        const overallExpenseEl = document.getElementById('pdc-overall-expense-display');
         const overallContribEl = document.getElementById('pdc-overall-contributors-display');
-        const overall = data.overall_summary || { overall_total: 0, overall_contributing_students_count: 0 };
+        const overall = data.overall_summary || { overall_total: 0, overall_gpay: 0, overall_expense: 0, overall_contributing_students_count: 0 };
 
         if (overallTotalEl) overallTotalEl.textContent = `₹${(overall.overall_total || 0).toLocaleString('en-IN')}`;
+        if (overallGpayEl) overallGpayEl.textContent = `₹${(overall.overall_gpay || 0).toLocaleString('en-IN')}`;
+        if (overallExpenseEl) overallExpenseEl.textContent = `₹${(overall.overall_expense || 0).toLocaleString('en-IN')}`;
         if (overallContribEl) overallContribEl.textContent = `${overall.overall_contributing_students_count || 0} Students`;
 
         // Render 4 Daily Summary Cards & Subtotals

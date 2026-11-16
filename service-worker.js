@@ -11,7 +11,7 @@
  * ============================================================================
  */
 
-const CACHE_NAME = 'attendance-pwa-v61';
+const CACHE_NAME = 'attendance-pwa-v62';
 const STATIC_ASSETS = [
   './index.html',
   './manifest.json',
